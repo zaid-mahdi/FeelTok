@@ -1,4 +1,8 @@
-// Turns Firebase errors into messages that users can understand.
+// Turns errors into messages that users can understand.
+
+// Our own error code, for when another user already has the username.
+export const USERNAME_TAKEN_CODE = "username-taken";
+
 const ERROR_MESSAGES = {
   "auth/invalid-credential": "Wrong email or password.",
   "auth/invalid-login-credentials": "Wrong email or password.",
@@ -11,11 +15,12 @@ const ERROR_MESSAGES = {
     "No internet connection. Please check it and try again.",
   "auth/email-already-in-use": "This email is already in use.",
   "auth/weak-password": "Please choose a stronger password.",
+  [USERNAME_TAKEN_CODE]: "This username is already taken.",
   "permission-denied": "You don't have permission to do this.",
   unavailable: "No internet connection. Please check it and try again.",
 };
 
-// Takes a Firebase error and returns a friendly message to show the user.
+// Takes an error and returns a friendly message to show the user.
 export function friendlyError(error) {
   return (
     ERROR_MESSAGES[error?.code] ?? "Something went wrong. Please try again."

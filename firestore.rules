@@ -1,10 +1,50 @@
 // FeelTok security rules: the source of truth, pasted into the Firebase console.
-// Everything is locked for now. Each task opens only what it needs.
+// Everything not listed here is locked. Each task opens only what it needs.
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if false;
+
+    // True if the request comes from the logged-in user with this ID.
+    function isCurrentUser(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    // True if the username is 3 to 20 lowercase letters, numbers and underscores.
+    function isValidUsername(username) {
+      return username is string && username.matches('^[a-z0-9_]{3,20}$');
+    }
+
+    // True if the profile has exactly the fields and values of a new user, so
+    // nobody can sign up as an admin or add other fields.
+    function isNewProfile(profile) {
+      return profile.keys().hasOnly(['username', 'displayName', 'bio',
+          'hasPhoto', 'mood', 'moodUpdatedAt', 'role', 'banned', 'createdAt'])
+        && isValidUsername(profile.username)
+        && profile.displayName == profile.username
+        && profile.bio == ''
+        && profile.hasPhoto == false
+        && profile.mood == null
+        && profile.moodUpdatedAt == null
+        && profile.role == 'user'
+        && profile.banned == false
+        && profile.createdAt == request.time;
+    }
+
+    // Usernames: anyone can check if one is taken. A new user claims one in
+    // the same step as their profile, so each user can only have one.
+    match /usernames/{username} {
+      allow get: if true;
+      allow create: if isValidUsername(username)
+        && request.resource.data.keys().hasOnly(['uid'])
+        && isCurrentUser(request.resource.data.uid)
+        && getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.username == username;
+    }
+
+    // Users: a new user creates their own profile together with their username.
+    match /users/{uid} {
+      allow create: if isCurrentUser(uid)
+        && isNewProfile(request.resource.data)
+        && getAfter(/databases/$(database)/documents/usernames/$(request.resource.data.username)).data.uid == uid;
     }
   }
 }

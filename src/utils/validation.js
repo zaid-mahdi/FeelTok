@@ -1,6 +1,7 @@
 // Text limits and checks for what users type.
 export const MIN_USERNAME_LENGTH = 3;
 export const MAX_USERNAME_LENGTH = 20;
+export const MIN_PASSWORD_LENGTH = 6; // the minimum Firebase accepts
 export const MAX_BIO_LENGTH = 150;
 
 // Takes a username and returns an error message, or null if it is valid.
@@ -13,7 +14,7 @@ export function validateUsername(username) {
     return `Username must be ${MIN_USERNAME_LENGTH} to ${MAX_USERNAME_LENGTH} characters.`;
   }
   if (!/^[a-z0-9_]+$/.test(username)) {
-    return "Use only lowercase letters, numbers and underscores.";
+    return "Username can only have lowercase letters, numbers and underscores.";
   }
   return null;
 }
@@ -31,5 +32,19 @@ export function validateLogin(email, password) {
   const emailMessage = validateEmail(email);
   if (emailMessage) return emailMessage;
   if (!password) return "Please enter your password.";
+  return null;
+}
+
+// Takes the sign up fields and returns an error message, or null if they are
+// all valid. Firebase checks if the email is valid and not already in use.
+export function validateSignUp(email, username, password, confirmedPassword) {
+  const emailMessage = validateEmail(email);
+  if (emailMessage) return emailMessage;
+  const usernameMessage = validateUsername(username);
+  if (usernameMessage) return usernameMessage;
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    return `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`;
+  }
+  if (password !== confirmedPassword) return "The passwords don't match.";
   return null;
 }

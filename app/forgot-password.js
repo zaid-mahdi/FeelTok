@@ -12,11 +12,18 @@ export default function ForgotPasswordScreen() {
     router.dismissTo("/login");
   }
 
+  // Opens the sign up page.
+  function handleSignUp() {
+    router.push("/signup");
+  }
+
   return (
     <AuthLayout
       title="Forgot your login?"
       subtitle="Enter your registered email to get a password reset link."
       footerQuestion="Don't have an account?"
+      footerLinkText="Create your story"
+      onFooterLinkPress={handleSignUp}
       onBack={handleBack}
     >
       <ForgotPasswordForm />

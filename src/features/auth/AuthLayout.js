@@ -1,33 +1,37 @@
-// Shared layout of the login and forgot password pages, from the designer's
-// mockups.
+// Shared layout of the login, sign up and forgot password pages, from the
+// designer's mockups.
 import { Image } from "expo-image";
 import {
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import BackButton from "../../components/BackButton";
 import { COLORS } from "../../theme/colors";
 import { FONTS } from "../../theme/fonts";
 
-// Shows the logo, title, subtitle, the page's form (children) and the footer.
-// If onBack is given, also shows a back button that calls it when pressed.
+// Shows the logo, title, subtitle, the page's form (children) and the footer
+// with its link. If onBack is given, also shows a back button. isCompact uses
+// less space above the form, for pages with many fields.
 export default function AuthLayout({
   title,
   subtitle,
   footerQuestion,
+  footerLinkText,
+  onFooterLinkPress,
   onBack,
+  isCompact = false,
   children,
 }) {
   const insets = useSafeAreaInsets();
 
   // Keep the mockup's spacing, but never go under the notch or home bar.
   const screenPadding = {
-    paddingTop: Math.max(insets.top + 12, 58),
+    paddingTop: Math.max(insets.top + 5, 51),
     paddingBottom: Math.max(insets.bottom + 12, 36),
   };
 
@@ -40,19 +44,11 @@ export default function AuthLayout({
         contentContainerStyle={[styles.content, screenPadding]}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.header}>
+        <View style={[styles.header, isCompact && styles.headerCompact]}>
           {onBack && (
-            <Pressable
-              onPress={onBack}
-              style={styles.backButton}
-              accessibilityRole="button"
-              accessibilityLabel="Back to login"
-            >
-              <Image
-                source={require("../../../assets/images/icon-back.svg")}
-                style={styles.backIcon}
-              />
-            </Pressable>
+            <View style={styles.backButton}>
+              <BackButton onPress={onBack} accessibilityLabel="Back to login" />
+            </View>
           )}
           <Image
             source={require("../../../assets/images/feeltok-logo.svg")}
@@ -63,15 +59,21 @@ export default function AuthLayout({
         </View>
 
         <Text style={styles.title}>{title}</Text>
-        <Text style={styles.subtitle}>{subtitle}</Text>
+        <Text style={[styles.subtitle, isCompact && styles.subtitleCompact]}>
+          {subtitle}
+        </Text>
 
         {children}
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>
             {footerQuestion}{" "}
-            <Text style={styles.footerLink} accessibilityRole="link">
-              Create your story
+            <Text
+              style={styles.footerLink}
+              onPress={onFooterLinkPress}
+              accessibilityRole="link"
+            >
+              {footerLinkText}
             </Text>
           </Text>
         </View>
@@ -90,21 +92,15 @@ const styles = StyleSheet.create({
     alignSelf: "center",
   },
 
+  // As tall as the back button, so the logo is in the same place on every page.
   header: {
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 48,
-  },
-  // The arrow lines up with the page text, inside a 44px touch area.
-  backButton: {
-    position: "absolute",
-    left: -10,
-    width: 44,
     height: 44,
     alignItems: "center",
     justifyContent: "center",
+    marginBottom: 42,
   },
-  backIcon: { width: 24, height: 24 },
+  headerCompact: { marginBottom: 32 },
+  backButton: { position: "absolute", left: 0 },
   // The logo SVG is 534 x 106, so we keep that ratio.
   logo: { width: 154, height: 154 * (106 / 534) },
 
@@ -123,6 +119,7 @@ const styles = StyleSheet.create({
     color: COLORS.grey,
     marginBottom: 34,
   },
+  subtitleCompact: { marginBottom: 28 },
 
   // Takes the remaining height so its text sits at the bottom of the screen.
   footer: {
