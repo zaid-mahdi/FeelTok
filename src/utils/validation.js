@@ -18,10 +18,18 @@ export function validateUsername(username) {
   return null;
 }
 
+// Takes an email and returns an error message, or null if it is filled in.
+// Firebase checks if it is a real email address.
+export function validateEmail(email) {
+  if (!email.trim()) return "Please enter your email.";
+  return null;
+}
+
 // Takes the login fields and returns an error message, or null if both are
 // filled in. Firebase checks if they are correct.
 export function validateLogin(email, password) {
-  if (!email.trim()) return "Please enter your email.";
+  const emailMessage = validateEmail(email);
+  if (emailMessage) return emailMessage;
   if (!password) return "Please enter your password.";
   return null;
 }

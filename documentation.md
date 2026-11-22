@@ -6,7 +6,7 @@ This file describes the project as it is built today. It is updated after every 
 
 FeelTok is a small social app where emotions are central. Users will use it as a mobile app, and admins will use a dashboard in the browser. Both come from the same project.
 
-So far, login works and all other pages are placeholders. The team's designer is still working on those pages.
+So far, login and forgot password work, and all other pages are placeholders. The team's designer is still working on those pages.
 
 **Tech stack:** Expo (React Native) with Expo Router, JavaScript only, Firebase Authentication (email and password) and Cloud Firestore. We use the free Firebase plan.
 
@@ -25,7 +25,7 @@ So far, login works and all other pages are placeholders. The team's designer is
 | `app/` | The screens. Each file is one page. |
 | `app/(tabs)/` | The 4 tabs: Home, Create, Friends, Profile |
 | `src/lib/` | Firebase setup |
-| `src/features/auth/` | Everything about login |
+| `src/features/auth/` | Everything about login and passwords |
 | `src/components/` | Small pieces shared by many screens |
 | `src/constants/` | Fixed lists, such as the 6 emotions |
 | `src/theme/` | Colours and fonts |
@@ -82,6 +82,45 @@ The database is fully locked: nobody can read or write anything. Each task will 
 
 **Notes / limits:** The tabs have no design or icons yet. The tabs also open in the browser for now; Task 5 will limit them to mobile.
 
+### Task 2 — Sign up with unique username + Forgot password (forgot password part only)
+
+**What it does:** A user who forgot their password taps "Forgot password?" on login, enters their email and gets a reset link by email. The page always shows the same message, so nobody can use it to find out who has an account. A back button returns to login.
+
+**Files:**
+- `app/forgot-password.js`: the forgot password page
+- `src/features/auth/ForgotPasswordForm.js`: the email field and the Send Link button
+- `src/features/auth/AuthLayout.js`: the logo, title, footer and back button shared with login
+- `src/features/auth/EmailField.js`, `src/features/auth/authFormStyles.js`: the email field and the styles shared with login
+- `src/components/PrimaryButton.js`: the purple button
+- `src/components/NoticeText.js`: good or neutral messages
+- `assets/images/icon-back.svg`: the back arrow
+- Changed: `app/login.js` and `src/features/auth/LoginForm.js` (use the shared files, and "Forgot password?" works), `src/features/auth/authService.js`, `src/utils/validation.js`
+
+**Main functions / hooks / components:**
+- `sendPasswordReset`: asks Firebase to send the reset email
+- `validateEmail`: checks that the email is filled in
+- `ForgotPasswordForm`: checks the email, sends the link and shows the result
+- `AuthLayout`, `EmailField`, `PrimaryButton`, `NoticeText`: shared pieces of the page
+
+**Firestore:** nothing is read or written.
+
+**Firebase console steps:** none needed. The email text can be changed in Authentication → Templates → Password reset.
+
+**How to test:**
+1. On login, tap "Forgot password?". The forgot password page opens.
+2. Tap Send Link with no email. It says "Please enter your email."
+3. Enter "abc". It says "Please enter a valid email address."
+4. Enter an email with no account. It says "If an account exists for this email, we've sent a reset link."
+5. Enter a test account's email. The same message shows, and the email arrives (check spam).
+6. Open the link, choose a new password and log in with it.
+7. Tap the back arrow. Login opens.
+
+**Notes / limits:**
+- The test account must use a real email address, or no email can arrive.
+- The new password is chosen on a Firebase web page, not inside the app.
+- Sign up waits for its design, so "Create your story" does nothing yet.
+- The message below the email field and the back arrow are not from the designer yet.
+
 ### Task 3 — Login + auth hook (login part only)
 
 **What it does:** Users log in with their email and password on the designed login page. A wrong email or password shows a clear message. Users stay logged in after closing the app.
@@ -113,6 +152,6 @@ The database is fully locked: nobody can read or write anything. Each task will 
 
 **Notes / limits:**
 - The user profile and the admin check wait for sign up (Task 2), because test accounts made in the console have no profile.
-- "Forgot password?" and "Create your story" do nothing yet (Tasks 4 and 2).
+- "Create your story" does nothing yet (Task 2).
 - The app sends logged-out users to login. Home becomes public in Task 7.
 - The red colour for errors is not from the designer yet.

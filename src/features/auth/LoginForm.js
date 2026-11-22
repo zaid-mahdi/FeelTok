@@ -1,23 +1,21 @@
 // Login form: the email and password fields and the Log in button.
+import { useRouter } from "expo-router";
 import { useState } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import ErrorText from "../../components/ErrorText";
+import PrimaryButton from "../../components/PrimaryButton";
 import { COLORS } from "../../theme/colors";
 import { FONTS } from "../../theme/fonts";
 import { friendlyError } from "../../utils/errors";
 import { validateLogin } from "../../utils/validation";
+import { authFormStyles } from "./authFormStyles";
 import { logIn } from "./authService";
+import EmailField from "./EmailField";
 
 // Shows the login fields and logs the user in. Takes no props: after a
 // successful login, useAuth gets the user and the login screen closes itself.
 export default function LoginForm() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
@@ -27,6 +25,11 @@ export default function LoginForm() {
   // Switches the password between hidden and readable text.
   function handleTogglePassword() {
     setIsPasswordVisible((isVisible) => !isVisible);
+  }
+
+  // Opens the forgot password page.
+  function handleForgotPassword() {
+    router.push("/forgot-password");
   }
 
   // Checks the fields, then logs in with Firebase. Shows a friendly message
@@ -49,29 +52,22 @@ export default function LoginForm() {
 
   return (
     <View>
-      <Text style={styles.label}>Email</Text>
-      <TextInput
-        style={[styles.inputBox, styles.inputText]}
-        value={email}
-        onChangeText={setEmail}
-        placeholder="you@example.com"
-        placeholderTextColor={COLORS.placeholder}
-        accessibilityLabel="Email"
-        keyboardType="email-address"
-        autoComplete="email"
-        autoCapitalize="none"
-        autoCorrect={false}
-      />
+      <EmailField value={email} onChangeText={setEmail} />
 
       <View style={styles.passwordLabelRow}>
-        <Text style={styles.label}>Password</Text>
-        <Pressable accessibilityRole="link" hitSlop={10}>
+        <Text style={authFormStyles.label}>Password</Text>
+        <Pressable
+          onPress={handleForgotPassword}
+          accessibilityRole="link"
+          accessibilityLabel="Forgot password?"
+          hitSlop={10}
+        >
           <Text style={styles.link}>Forgot password?</Text>
         </Pressable>
       </View>
-      <View style={[styles.inputBox, styles.passwordBox]}>
+      <View style={[authFormStyles.inputBox, styles.passwordBox]}>
         <TextInput
-          style={[styles.inputText, styles.passwordInput]}
+          style={[authFormStyles.inputText, styles.passwordInput]}
           value={password}
           onChangeText={setPassword}
           placeholder="Enter your password"
@@ -97,34 +93,16 @@ export default function LoginForm() {
 
       <ErrorText message={errorMessage} />
 
-      <Pressable
+      <PrimaryButton
+        title="Log in"
         onPress={handleSubmit}
-        disabled={isSubmitting}
-        accessibilityRole="button"
-        accessibilityLabel="Log in"
-        style={({ pressed }) => [
-          styles.primaryButton,
-          (pressed || isSubmitting) && styles.primaryButtonDimmed,
-        ]}
-      >
-        {isSubmitting ? (
-          <ActivityIndicator color={COLORS.white} />
-        ) : (
-          <Text style={styles.primaryButtonText}>Log in</Text>
-        )}
-      </Pressable>
+        isLoading={isSubmitting}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  label: {
-    fontFamily: FONTS.semiBold,
-    fontSize: 13,
-    lineHeight: 18,
-    color: COLORS.ink,
-    marginBottom: 8,
-  },
   passwordLabelRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -136,35 +114,6 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     color: COLORS.purple,
   },
-
-  inputBox: {
-    height: 52,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    backgroundColor: COLORS.inputBackground,
-    paddingHorizontal: 16,
-  },
-  inputText: {
-    fontFamily: FONTS.regular,
-    fontSize: 16,
-    color: COLORS.ink,
-  },
   passwordBox: { flexDirection: "row", alignItems: "center", gap: 12 },
   passwordInput: { flex: 1, minWidth: 0, height: "100%" },
-
-  primaryButton: {
-    height: 54,
-    borderRadius: 14,
-    backgroundColor: COLORS.purple,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 24,
-  },
-  primaryButtonDimmed: { opacity: 0.85 },
-  primaryButtonText: {
-    fontFamily: FONTS.semiBold,
-    fontSize: 16,
-    color: COLORS.white,
-  },
 });
