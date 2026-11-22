@@ -1,0 +1,10 @@
+// FeelTok security rules: the source of truth, pasted into the Firebase console.
+// Everything is locked for now. Each task opens only what it needs.
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
