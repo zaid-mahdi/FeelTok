@@ -3,8 +3,8 @@ import { Image } from "expo-image";
 import { Pressable, StyleSheet } from "react-native";
 import { COLORS } from "../theme/colors";
 
-// Shows a white box with a back arrow. Takes a function to call when pressed
-// and a label for screen readers.
+// Shows a light round button with a back arrow. Takes a function to call when
+// pressed and a label for screen readers.
 export default function BackButton({ onPress, accessibilityLabel = "Back" }) {
   return (
     <Pressable
@@ -25,13 +25,11 @@ const styles = StyleSheet.create({
   button: {
     width: 44,
     height: 44,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    backgroundColor: COLORS.white,
+    borderRadius: 22,
+    backgroundColor: COLORS.inputBackground,
     alignItems: "center",
     justifyContent: "center",
   },
-  buttonPressed: { backgroundColor: COLORS.inputBackground },
+  buttonPressed: { backgroundColor: COLORS.border },
   icon: { width: 20, height: 20 },
 });

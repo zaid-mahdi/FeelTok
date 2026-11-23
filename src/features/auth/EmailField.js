@@ -1,4 +1,4 @@
-// Email field shared by the login, sign up and forgot password forms.
+// Email field shared by the login and forgot password forms.
 import TextField from "../../components/TextField";
 
 // Shows the "Email" label and input. Takes the text, a function called when it

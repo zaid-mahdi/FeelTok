@@ -14,8 +14,9 @@ import BackButton from "../../components/BackButton";
 import { COLORS } from "../../theme/colors";
 import { FONTS } from "../../theme/fonts";
 
-// Shows the logo, title, subtitle, the page's form (children) and the footer
-// with its link. If onBack is given, also shows a back button. isCompact uses
+// Shows the logo, title, subtitle and the page's form (children). If
+// footerQuestion is given, also shows the footer with its link at the bottom,
+// and if onBack is given, a back button. isCompact uses a smaller logo and
 // less space above the form, for pages with many fields.
 export default function AuthLayout({
   title,
@@ -52,31 +53,35 @@ export default function AuthLayout({
           )}
           <Image
             source={require("../../../assets/images/feeltok-logo.svg")}
-            style={styles.logo}
+            style={isCompact ? styles.logoCompact : styles.logo}
             contentFit="contain"
             accessibilityLabel="FeelTok"
           />
         </View>
 
-        <Text style={styles.title}>{title}</Text>
+        <Text style={[styles.title, isCompact && styles.titleCompact]}>
+          {title}
+        </Text>
         <Text style={[styles.subtitle, isCompact && styles.subtitleCompact]}>
           {subtitle}
         </Text>
 
         {children}
 
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>
-            {footerQuestion}{" "}
-            <Text
-              style={styles.footerLink}
-              onPress={onFooterLinkPress}
-              accessibilityRole="link"
-            >
-              {footerLinkText}
+        {footerQuestion && (
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>
+              {footerQuestion}{" "}
+              <Text
+                style={styles.footerLink}
+                onPress={onFooterLinkPress}
+                accessibilityRole="link"
+              >
+                {footerLinkText}
+              </Text>
             </Text>
-          </Text>
-        </View>
+          </View>
+        )}
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -99,10 +104,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 42,
   },
-  headerCompact: { marginBottom: 32 },
+  headerCompact: { marginBottom: 29 },
   backButton: { position: "absolute", left: 0 },
   // The logo SVG is 534 x 106, so we keep that ratio.
   logo: { width: 154, height: 154 * (106 / 534) },
+  logoCompact: { width: 126, height: 126 * (106 / 534) },
 
   title: {
     fontFamily: FONTS.headingExtraBold,
@@ -112,6 +118,7 @@ const styles = StyleSheet.create({
     color: COLORS.ink,
     marginBottom: 6,
   },
+  titleCompact: { fontSize: 30, lineHeight: 38 },
   subtitle: {
     fontFamily: FONTS.regular,
     fontSize: 15,
@@ -119,7 +126,7 @@ const styles = StyleSheet.create({
     color: COLORS.grey,
     marginBottom: 34,
   },
-  subtitleCompact: { marginBottom: 28 },
+  subtitleCompact: { marginBottom: 23 },
 
   // Takes the remaining height so its text sits at the bottom of the screen.
   footer: {

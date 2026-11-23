@@ -96,7 +96,7 @@ The username is the document ID, so two users can never have the same one. The e
 
 ### Task 2 — Sign up with unique username + Forgot password
 
-**What it does:** A new user taps "Create your story" on login or forgot password, enters an email, a username and the password twice, and gets an account. They are logged in straight away, and no email confirmation is needed. A taken username or wrong input shows a clear message. A user who forgot their password taps "Forgot password?" on login, enters their email and gets a reset link by email. The page always shows the same message, so nobody can use it to find out who has an account. A back button returns to login.
+**What it does:** A new user taps "Create your story" on login or forgot password, enters a username, an email and the password twice, and gets an account. The Create account button stays grey until all four fields are filled in. They are logged in straight away, and no email confirmation is needed. A taken username or wrong input shows a clear message. A user who forgot their password taps "Forgot password?" on login, enters their email and gets a reset link by email. The page always shows the same message, so nobody can use it to find out who has an account. A back button returns to login.
 
 **Files:**
 - `app/signup.js`: the sign up page layout from the designer
@@ -106,11 +106,11 @@ The username is the document ID, so two users can never have the same one. The e
 - `app/forgot-password.js`: the forgot password page
 - `src/features/auth/ForgotPasswordForm.js`: the email field and the Send Link button
 - `src/features/auth/AuthLayout.js`: the logo, title, footer and back button shared by login, sign up and forgot password
-- `src/features/auth/EmailField.js`: the email field shared by the 3 pages
+- `src/features/auth/EmailField.js`: the email field shared by login and forgot password
 - `src/features/auth/PasswordField.js`: the password field with Show/Hide, shared by login and sign up
-- `src/components/TextField.js`: the label and input from the design system, with the purple focused style (replaces `authFormStyles.js`)
+- `src/components/TextField.js`: the label and input from the design system, with the purple focused style, an optional "@" prefix and hint text below (replaces `authFormStyles.js`)
 - `src/components/BackButton.js`: the back button shared by sign up and forgot password
-- `src/components/PrimaryButton.js`: the purple button, darker when pressed
+- `src/components/PrimaryButton.js`: the purple button, darker when pressed and grey when it can't be used yet
 - `src/components/NoticeText.js`: good or neutral messages
 - `assets/images/icon-back.svg`: the back arrow
 - Changed: `app/login.js` and `src/features/auth/LoginForm.js` (use the shared files, and "Forgot password?" and "Create your story" work), `src/theme/colors.js` (the full brand kit palette), `src/features/auth/authService.js` (sign up and reset email), `src/utils/validation.js` (new checks), `src/utils/errors.js` (the "username taken" message)
@@ -134,9 +134,9 @@ The username is the document ID, so two users can never have the same one. The e
 **Firebase console steps:** the new `firestore.rules` published in Firestore Database → Rules. No indexes are needed. The reset email text can be changed in Authentication → Templates → Password reset.
 
 **How to test sign up** (publish the rules first):
-1. On login, tap "Create your story". The sign up page opens.
-2. Tap Sign up with empty fields. It says "Please enter your email."
-3. Enter an email and the username "Ab". It says "Username must be 3 to 20 characters."
+1. On login, tap "Create your story". The sign up page opens. The Create account button is grey.
+2. Fill in only three fields. The button stays grey and does nothing. Fill in the fourth and it turns purple.
+3. Use the username "Ab". It says "Username must be 3 to 20 characters."
 4. Use the username "Sara K". It says "Username can only have lowercase letters, numbers and underscores."
 5. Use a good username and the password "123". It says "Password must be at least 6 characters."
 6. Use a good password and a different confirm password. It says "The passwords don't match."
@@ -148,8 +148,8 @@ The username is the document ID, so two users can never have the same one. The e
 12. Turn the internet off and try to sign up. It says there is no internet connection.
 13. Log in with the new account. Home opens.
 14. On sign up, tap inside each input. It turns white with a purple border.
-15. Tap Show on both password fields. Each one shows and hides only its own text.
-16. Tap the back button, then open sign up again and tap "Log in" at the bottom. Both open login.
+15. Tap Show on the password. It shows and hides the password. The confirm password has no Show button.
+16. Tap the back button. Login opens. Open sign up again and tap "Log in" at the bottom. Login opens.
 
 **How to test forgot password:**
 1. On login, tap "Forgot password?". The forgot password page opens.
@@ -168,7 +168,11 @@ The username is the document ID, so two users can never have the same one. The e
 - If the internet drops in the middle of a sign up, an account without a profile can be left behind. Delete it in Authentication → Users to free the email.
 - Accounts made in the Firebase console have no profile and no username.
 - The message below the email field on forgot password is not from the designer yet.
-- The inputs and buttons follow the design system (input radius 12, button height 52), also on login and forgot password. The sign up mockup draws its button 2 px taller.
+- Sign up follows the designer's newest mockup: username first, an "@" before the username, hints under the username and password, the terms sentence under the button, and "Already have an account? Log in" at the bottom.
+- The password hints say 6 characters, because the team kept the 6 character minimum. The mockup said 8 with a letter and a number.
+- "Terms" and "Community guidelines" are not links yet, because those pages don't exist.
+- Sign up uses a slightly smaller logo, title and inputs than login, as in its mockup.
+- Buttons are 54 px high on all pages, as in every mockup. The design system says 52.
 
 ### Task 3 — Login + auth hook (login part only)
 
