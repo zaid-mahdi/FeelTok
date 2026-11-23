@@ -14,6 +14,13 @@ service cloud.firestore {
       return username is string && username.matches('^[a-z0-9_]{3,20}$');
     }
 
+    // True if the mood is one of the 6 user moods, or no mood. These are the
+    // user moods only, never the post reactions (keep in sync with moods.js).
+    function isValidMood(mood) {
+      return mood == null
+        || mood in ['happy', 'sad', 'angry', 'love', 'surprised', 'funny'];
+    }
+
     // True if the profile has exactly the fields and values of a new user, so
     // nobody can sign up as an admin or add other fields.
     function isNewProfile(profile) {
@@ -40,11 +47,29 @@ service cloud.firestore {
         && getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.username == username;
     }
 
-    // Users: a new user creates their own profile together with their username.
+    // True if a user's change to their own profile only touches the fields
+    // they may edit, with valid values. role, banned, username and createdAt
+    // can never be changed this way, so nobody can make themselves an admin.
+    function isValidOwnProfileUpdate() {
+      let profile = request.resource.data;
+      return profile.diff(resource.data).affectedKeys()
+          .hasOnly(['displayName', 'bio', 'hasPhoto', 'mood', 'moodUpdatedAt'])
+        && profile.displayName is string
+        && profile.bio is string && profile.bio.size() <= 150
+        && profile.hasPhoto is bool
+        && isValidMood(profile.mood)
+        && (profile.moodUpdatedAt == null || profile.moodUpdatedAt is timestamp);
+    }
+
+    // Users: anyone can read one public profile (not list them all). A new user
+    // creates their own profile together with their username, and can later
+    // edit only the safe fields of it.
     match /users/{uid} {
+      allow get: if true;
       allow create: if isCurrentUser(uid)
         && isNewProfile(request.resource.data)
         && getAfter(/databases/$(database)/documents/usernames/$(request.resource.data.username)).data.uid == uid;
+      allow update: if isCurrentUser(uid) && isValidOwnProfileUpdate();
     }
   }
 }

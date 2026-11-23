@@ -3,13 +3,15 @@ import { useRouter } from "expo-router";
 import AuthLayout from "../src/features/auth/AuthLayout";
 import ForgotPasswordForm from "../src/features/auth/ForgotPasswordForm";
 
-// Shows the forgot password page, with a back button to login.
+// Shows the forgot password page, with a back button.
 export default function ForgotPasswordScreen() {
   const router = useRouter();
 
-  // Goes back to login, also when this page was opened directly.
+  // Goes back to the page that opened this one (login or the admin page), or
+  // to login when this page was opened directly.
   function handleBack() {
-    router.dismissTo("/login");
+    if (router.canGoBack()) router.back();
+    else router.replace("/login");
   }
 
   // Opens the sign up page.

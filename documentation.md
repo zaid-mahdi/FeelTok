@@ -6,7 +6,7 @@ This file describes the project as it is built today. It is updated after every 
 
 FeelTok is a small social app where emotions are central. Users will use it as a mobile app, and admins will use a dashboard in the browser. Both come from the same project.
 
-So far, sign up, login and forgot password work and have their final design. All other pages are placeholders. The team's designer is still working on those pages.
+So far, sign up, login and forgot password work and have their final design. Roles work: the app works on phones and in the browser, and admins sign in at `/admin` in the browser. All other pages are placeholders. The team's designer is still working on those pages.
 
 **Tech stack:** Expo (React Native) with Expo Router, JavaScript only, Firebase Authentication (email and password) and Cloud Firestore. We use the free Firebase plan.
 
@@ -16,7 +16,7 @@ So far, sign up, login and forgot password work and have their final design. All
 2. Run `npm install` in the project folder.
 3. Copy `.env.example` to a new file named `.env` and fill in the Firebase values. Find them in Firebase console → ⚙️ Project settings → General → Your apps → the web app → Config. Never commit `.env`.
 4. Run `npx expo start` and scan the QR code with the phone. After changing `.env`, run `npx expo start -c` instead.
-5. To open the project in the browser, press **w** in the Expo terminal. The admin dashboard will be here later.
+5. To open the app in the browser, press **w** in the Expo terminal. To open the admin area, go to `/admin` in that browser tab and sign in with an admin account (see "How to make an admin" in the README).
 
 ## Folder structure
 
@@ -24,13 +24,15 @@ So far, sign up, login and forgot password work and have their final design. All
 |---|---|
 | `app/` | The screens. Each file is one page. |
 | `app/(tabs)/` | The 4 tabs: Home, Create, Friends, Profile |
+| `app/admin/` | The admin area: admin sign-in and dashboard (web only) |
 | `src/lib/` | Firebase setup |
 | `src/features/auth/` | Everything about sign up, login and passwords |
 | `src/features/profile/` | Usernames and user profiles |
+| `src/features/admin/` | The admin sign-in page |
 | `src/components/` | Small pieces shared by many screens |
-| `src/constants/` | Fixed lists, such as the 6 emotions |
+| `src/constants/` | Fixed lists: the 6 user moods and the 6 post reactions (two separate lists) |
 | `src/theme/` | Colours and fonts |
-| `src/utils/` | Helpers: error messages and text checks |
+| `src/utils/` | Helpers: error messages, text checks and the web/mobile check |
 | `__tests__/` | Empty, for tests |
 | `assets/` | Images, icons and the logo |
 | `firestore.rules` | The database security rules |
@@ -52,7 +54,9 @@ The username is the document ID, so two users can never have the same one. The e
 - Anyone can check if one username is taken, but nobody can list all usernames.
 - A new user can create only their own profile and username, both together and only once.
 - A new profile must have the starting values, so nobody can sign up as an admin or with extra fields.
-- Nobody can read, change or delete profiles from the app yet, and nobody can change or delete usernames.
+- Anyone can read one user's profile, but nobody can list all profiles.
+- Users can edit only their own display name, bio, photo flag and mood (one of the 6 user moods, or none). They can never change their own role, blocked status, username or join date, so nobody can make themselves an admin.
+- Nobody can delete profiles from the app yet, and nobody can change or delete usernames.
 - Everything else is locked. Each task opens only what it needs.
 
 ---
@@ -204,5 +208,68 @@ The username is the document ID, so two users can never have the same one. The e
 5. Open Profile. It shows your email. Tap Log out and the login page opens.
 
 **Notes / limits:**
-- The user profile and the admin check are not in `useAuth` yet. They come next, because sign up now creates profiles.
+- The user profile and the admin check were added to `useAuth` in Task 5.
 - The app sends logged-out users to login. Home becomes public in Task 7.
+
+### Task 4 — Logout
+
+**What it does:** The team decided that logout belongs in Settings, which opens from the Profile page (Task 16). Until then, the temporary Log out button on the Profile placeholder stays, so the team can keep testing.
+
+**Files:** none changed.
+
+**Notes / limits:** Logout returns to login for now. When Home becomes public (Task 7), it returns to Home.
+
+### Task 5 — Roles + route guards
+
+**What it does:** The app now knows each user's profile and whether they are an admin. The normal app works on phones and in the browser. The admin area is at `/admin` in the browser: it shows the admin sign-in page, and the admin dashboard once an admin has signed in. A logged-in user who is not an admin sees "not an admin" there and stays logged in to the normal app. The mobile app has no admin area. The security rules stop anyone from making themselves an admin.
+
+**Files:**
+- `src/utils/platform.js`: the one place that says if the app runs on the web or on a phone
+- `src/features/auth/AuthContext.js`: now also shares the live profile, the admin check and profile errors
+- `src/features/profile/profileService.js`: listens to a user's profile
+- `src/lib/firebase.js`: uses the shared web/mobile check
+- `app/admin/_layout.js`: the admin area exists only on the web; the mobile app goes to Home
+- `app/admin/index.js`: the admin page: the sign-in form, or the dashboard placeholder for admins
+- `src/features/admin/AdminAuthLayout.js`: the admin sign-in layout from the designer (dark brand panel and white card)
+- `src/features/admin/AdminSignInForm.js`: the admin sign-in form
+- `app/forgot-password.js`: its back button now returns to the page that opened it (login or the admin page)
+- `src/constants/moods.js` and `src/constants/reactions.js`: the 6 user moods and the 6 post reactions, kept separate (they replace `emotions.js`)
+- `src/theme/colors.js`: the colours of the dark admin panel
+- `assets/images/feeltok-logo-reversed.svg`: the white logo for dark backgrounds; `icon-lock.svg`: the lock icon in the admins-only note
+- `firestore.rules`: anyone can read a profile; users can edit only safe fields of their own profile
+- `README.md`: how to make an admin
+
+**Main functions / hooks / components:**
+- `isWeb`: true in the browser, false in the mobile app
+- `subscribeToProfile`: listens to a user's profile and reports every change
+- `useAuth`: now gives user, profile, profileError, isAdmin and isLoading
+- `AdminLayout`: keeps the admin area out of the mobile app
+- `AdminScreen`: shows the sign-in form or the dashboard placeholder
+- `AdminAuthLayout`, `AdminSignInForm`: the admin sign-in page
+- `USER_MOODS`, `POST_REACTIONS`: the two separate emotion lists
+
+**Firestore:** reads `users` (the logged-in user's own profile, live).
+
+**Firebase console steps:**
+- Publish the new `firestore.rules` in Firestore Database → Rules.
+- Make a test account an admin: see "How to make an admin" in the README.
+
+**How to test:**
+1. On a phone, log in with a normal account. The tabs open as before.
+2. In the browser, log in with the same normal account on the normal login page. The normal app opens.
+3. In the browser, open `/admin` while logged in as the normal user. The admin sign-in page says the account is not an admin. "Back to FeelTok" returns to the app, still logged in.
+4. Make another account an admin in the Firebase console. Open `/admin` and sign in with it. The dashboard placeholder shows "Signed in as admin @username".
+5. Tap "Reset password". The forgot password page opens, and its back button returns to the admin page.
+6. While the admin is on the dashboard, change their `role` to `user` in the console. The page switches to the sign-in form with the "not an admin" message.
+7. On a phone, log in with the admin account. The normal tabs open. There is no admin area in the mobile app.
+
+**Notes / limits:**
+- The admin dashboard is a placeholder until Task 17.
+- New admins are still made by hand in the Firebase console. Nobody can sign up as an admin.
+- The designer's note under the Sign in button also said sign-ins are logged and protected with two-step verification. FeelTok has neither (two-step verification needs Firebase's paid plan), so that part was removed.
+- An admin is also a normal user: logging in on the normal login page opens the normal app.
+- Accounts made only in the Firebase console have no profile, so they can't be admins. Make admins from accounts that signed up in the app.
+- In the browser, the admin check always waits for the server, so an old saved role is never used.
+- The white logo was made from the brand kit's rule (overlap and wordmark white on Midnight Ink). The designer should confirm it.
+- The mockup's "Keep me signed in" checkbox was left out (team decision): admins stay signed in, like everyone else.
+- The "not an admin" message is not in the mockup.

@@ -19,4 +19,10 @@ export const COLORS = {
   // Not in the palette, taken from the mockups
   purpleGlow: "rgba(108, 44, 255, 0.12)", // around a focused input
   placeholder: "#8A879E", // example text inside an empty input
+
+  // The dark brand panel of the admin sign-in page, measured from its mockup
+  panelText: "#D6D2E8", // text on Midnight Ink
+  panelBorder: "#3E376A", // tag outlines on Midnight Ink
+  adminBadge: "#2A2650", // the ADMIN badge
+  adminBadgeText: "#B9A6FF",
 };

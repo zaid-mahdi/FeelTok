@@ -9,7 +9,7 @@ import {
   initializeAuth,
 } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
-import { Platform } from "react-native";
+import { isWeb } from "../utils/platform";
 
 const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
@@ -23,10 +23,9 @@ const firebaseConfig = {
 // Starts Firebase Auth for the given app and returns it. Logins are saved in
 // AsyncStorage on mobile and in the browser's storage on the web.
 function startAuth(firebaseApp) {
-  const persistence =
-    Platform.OS === "web"
-      ? browserLocalPersistence
-      : getReactNativePersistence(AsyncStorage);
+  const persistence = isWeb
+    ? browserLocalPersistence
+    : getReactNativePersistence(AsyncStorage);
   return initializeAuth(firebaseApp, { persistence });
 }
 

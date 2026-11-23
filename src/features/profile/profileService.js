@@ -2,6 +2,7 @@
 import {
   doc,
   getDoc,
+  onSnapshot,
   runTransaction,
   serverTimestamp,
 } from "firebase/firestore";
@@ -13,6 +14,23 @@ export function createUsernameTakenError() {
   const error = new Error("This username is already taken.");
   error.code = USERNAME_TAKEN_CODE;
   return error;
+}
+
+// Listens to a user's profile and calls onProfile(profile, isFromServer) every
+// time it changes. profile is null if the user has no profile. isFromServer is
+// false while the answer comes from the phone's or browser's saved copy, and
+// it is sent again once the server confirms it. Calls onError if it can't be
+// read. Returns a function that stops listening.
+export function subscribeToProfile(uid, onProfile, onError) {
+  return onSnapshot(
+    doc(db, "users", uid),
+    { includeMetadataChanges: true },
+    (snapshot) => {
+      const profile = snapshot.exists() ? { uid, ...snapshot.data() } : null;
+      onProfile(profile, !snapshot.metadata.fromCache);
+    },
+    onError,
+  );
 }
 
 // Takes a username and returns true if nobody uses it yet.
