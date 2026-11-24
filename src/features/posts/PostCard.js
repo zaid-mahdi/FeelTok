@@ -1,13 +1,20 @@
 // One post in the feed, from the For You feed mockup: the author, the post
-// type, the text, the photo, the counts and the Share button.
+// type, the text, the photo, the counts, and the React and Share buttons.
 import { Image } from "expo-image";
+import { router } from "expo-router";
 import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
+import ErrorText from "../../components/ErrorText";
 import { findMood } from "../../constants/moods";
 import { COLORS } from "../../theme/colors";
 import { FONTS } from "../../theme/fonts";
+import { friendlyError } from "../../utils/errors";
 import { formatPostTime } from "../../utils/time";
+import { useAuth } from "../auth/AuthContext";
 import Avatar from "../profile/Avatar";
+import ReactionButton from "../reactions/ReactionButton";
+import { applyReactionChange } from "../reactions/reactionCounts";
+import { setReaction } from "../reactions/reactionService";
 import PostPhoto from "./PostPhoto";
 import PostStats from "./PostStats";
 import PostTypeTag from "./PostTypeTag";
@@ -24,15 +31,63 @@ function isLongText(text) {
   );
 }
 
-// Takes a post from Firestore (with its id) and shows it as a card.
+// Takes a post from Firestore (with its id, and myReaction: the logged-in
+// user's reaction or null) and shows it as a card.
 export default function PostCard({ post }) {
+  const { user } = useAuth();
   const [isExpanded, setIsExpanded] = useState(false);
+  const [reactionErrorMessage, setReactionErrorMessage] = useState(null);
   const mood = findMood(post.authorMood);
   const isShortened = !isExpanded && isLongText(post.text);
+
+  // The reaction and counts shown on screen. They change as soon as the user
+  // taps, before Firestore answers, and start again from the post whenever
+  // the feed loads it again.
+  const [shownReaction, setShownReaction] = useState({
+    post,
+    myReaction: post.myReaction ?? null,
+    reactionCounts: post.reactionCounts,
+  });
+  let shown = shownReaction;
+  if (shownReaction.post !== post) {
+    shown = {
+      post,
+      myReaction: post.myReaction ?? null,
+      reactionCounts: post.reactionCounts,
+    };
+    setShownReaction(shown);
+  }
 
   // Shows the whole text.
   function handleSeeMorePress() {
     setIsExpanded(true);
+  }
+
+  // Shows the new reaction straight away, then saves it. If saving fails,
+  // puts the old reaction and counts back and shows the error.
+  async function handleReact(newMoodKey) {
+    const before = shown;
+    setReactionErrorMessage(null);
+    setShownReaction({
+      post,
+      myReaction: newMoodKey,
+      reactionCounts: applyReactionChange(
+        before.reactionCounts,
+        before.myReaction,
+        newMoodKey,
+      ),
+    });
+    try {
+      await setReaction(post.id, user.uid, newMoodKey);
+    } catch (error) {
+      setShownReaction(before);
+      setReactionErrorMessage(friendlyError(error));
+    }
+  }
+
+  // Logged-out users who try to react are sent to login.
+  function handleLoginNeeded() {
+    router.push("/login");
   }
 
   return (
@@ -75,13 +130,19 @@ export default function PostCard({ post }) {
       {post.imageId && <PostPhoto postId={post.imageId} />}
 
       <PostStats
-        reactionCounts={post.reactionCounts}
+        reactionCounts={shown.reactionCounts}
         commentCount={post.commentCount}
       />
 
       <View style={styles.actions}>
+        <ReactionButton
+          myReaction={shown.myReaction}
+          onReact={handleReact}
+          canReact={Boolean(user)}
+          onLoginNeeded={handleLoginNeeded}
+        />
         {/* Share is only the look from the mockup: it does nothing yet
-            (team decision). React and Comment come in Tasks 8 and 9. */}
+            (team decision). Comment comes in Task 9. */}
         <View style={styles.share}>
           <Image
             source={require("../../../assets/images/icon-share.svg")}
@@ -90,6 +151,11 @@ export default function PostCard({ post }) {
           <Text style={styles.shareText}>Share</Text>
         </View>
       </View>
+      {reactionErrorMessage && (
+        <View style={styles.reactionError}>
+          <ErrorText message={reactionErrorMessage} />
+        </View>
+      )}
     </View>
   );
 }
@@ -131,14 +197,21 @@ const styles = StyleSheet.create({
     color: COLORS.grey,
   },
   actions: {
-    height: 50,
-    marginHorizontal: 20,
+    height: 56,
+    marginHorizontal: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
+  },
+  share: {
+    flex: 1,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
   },
-  share: { flexDirection: "row", alignItems: "center" },
+  reactionError: { paddingHorizontal: 20, paddingBottom: 12 },
   shareIcon: { width: 18, height: 18, marginRight: 7 },
   shareText: {
     fontFamily: FONTS.semiBold,

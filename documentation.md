@@ -6,7 +6,7 @@ This file describes the project as it is built today. It is updated after every 
 
 FeelTok is a small social app where emotions are central. Users will use it as a mobile app, and admins will use a dashboard in the browser. Both come from the same project.
 
-So far, sign up, login and forgot password work and have their final design. Roles work: the app works on phones and in the browser, and admins sign in at `/admin` in the browser. Users can create posts on the New post page, and everyone, even logged out, can read all posts in the For You feed on Home. All other pages are placeholders. The team's designer is still working on those pages.
+So far, sign up, login and forgot password work and have their final design. Roles work: the app works on phones and in the browser, and admins sign in at `/admin` in the browser. Users can create posts on the New post page, and everyone, even logged out, can read all posts in the For You feed on Home. Logged-in users react to posts with one of the 6 moods. All other pages are placeholders. The team's designer is still working on those pages.
 
 **Tech stack:** Expo (React Native) with Expo Router, JavaScript only, Firebase Authentication (email and password) and Cloud Firestore. We use the free Firebase plan.
 
@@ -29,6 +29,7 @@ So far, sign up, login and forgot password work and have their final design. Rol
 | `src/features/auth/` | Everything about sign up, login and passwords |
 | `src/features/profile/` | Usernames, user profiles and the avatar |
 | `src/features/posts/` | Posts: the New post page, the For You feed and the post card |
+| `src/features/reactions/` | Reacting to posts with a mood: the React button and its Firestore calls |
 | `src/features/admin/` | The admin sign-in page |
 | `src/components/` | Small pieces shared by many screens |
 | `src/constants/` | Fixed lists: the 6 user moods and the 6 post types (two separate lists) |
@@ -41,13 +42,14 @@ So far, sign up, login and forgot password work and have their final design. Rol
 
 ## Data model
 
-User accounts (email and password) are in Firebase Authentication. Firestore has 4 collections:
+User accounts (email and password) are in Firebase Authentication. Firestore has 4 collections, and posts have a `reactions` sub-collection:
 
 | Collection | Document ID | Fields |
 |---|---|---|
 | `users` | The user's ID | `username`, `displayName` (same as the username at sign up), `bio` (empty), `hasPhoto` (false), `mood` (null), `moodUpdatedAt` (null), `role` ("user"), `banned` (false), `createdAt` |
 | `usernames` | The username | `uid`: the ID of the user who has it |
 | `posts` | A new ID | `authorId`, `authorUsername`, `authorHasPhoto`, `authorMood` (one of the 6 moods or null), `postType` (one of the 6 post types), `text`, `imageId` (the post's own ID if it has a photo, or null), `reactionCounts` (0 for each of the 6 moods), `commentCount` (0), `createdAt` |
+| `posts/{postId}/reactions` | The ID of the user who reacted | `reaction`: one of the 6 moods. One per user per post |
 | `postImages` | The post's ID | `ownerId`, `data` (the photo as base64 text), `createdAt` |
 
 The username is the document ID, so two users can never have the same one. The email is not saved in Firestore.
@@ -65,6 +67,8 @@ There are two separate lists of six: the **moods** (happy, sad, angry, love, sur
 - A logged-in user who is not blocked can create a post as themselves, with their real username, a valid type and mood, text that isn't empty (up to 5,000 characters) and all counts at 0.
 - A post photo can only be created together with its post, by its author, and must be small enough for one document.
 - Anyone, even logged out, can read posts and list them (the For You feed), and read one post photo at a time. Nobody can list all photos.
+- Anyone can read reactions. A logged-in user who is not blocked can set, switch or remove only their own reaction (one of the 6 moods), on any post including their own.
+- The only change anyone can make to a post is its reaction counts, and only by exactly what their own reaction adds or removes in the same step.
 - Posts and photos can't be edited or deleted yet. Later tasks open deleting.
 - Everything else is locked. Each task opens only what it needs.
 
@@ -411,3 +415,46 @@ There are two separate lists of six: the **moods** (happy, sad, angry, love, sur
 - Avatar circle colours (purple, pink or Midnight Ink) are picked from the username, so the same user always has the same colour.
 - Photos are loaded one by one for each card and kept while the app is open.
 - "See more" shows on posts over 180 characters or 4 lines.
+
+### Task 8 — Post reactions
+
+**What it does:** Each post card has a React button. Tapping it opens a row of the 6 moods (😊 😢 😠 ❤️ 😮 😂), from the designer's mockup. Picking one reacts with it, and the button then shows that mood (for example "❤️ Love"). Each user has at most one reaction per post: tapping the same mood again removes it, and picking another one switches to it. The counts and top emojis under the post change straight away. Users can react to their own posts. Logged-out users who tap React are sent to login.
+
+**Files:**
+- `src/features/reactions/reactionService.js`: saves a reaction and its count together, and reads the user's reactions
+- `src/features/reactions/ReactionButton.js`: the React button and the row of 6 moods above it
+- `src/features/reactions/reactionCounts.js`: works out the new counts for the instant update on screen
+- `src/features/posts/PostCard.js`: shows the React button, updates the counts straight away and puts them back if saving fails
+- `src/features/posts/usePaginatedPosts.js`: also loads the user's own reaction to each post on the page
+- `src/features/posts/ForYouFeed.js`: passes the logged-in user to the feed
+- `src/constants/moods.js`: each mood now has a label ("Happy", "Love")
+- `firestore.rules`: who can react, and how the counts may change
+
+**Main functions / hooks / components:**
+- `setReaction`: sets, switches or removes the user's reaction in one transaction, with the post's counts
+- `fetchMyReactions`: reads the user's reaction to each post on a page
+- `applyReactionChange`: takes 1 from the old mood and adds 1 to the new one
+- `ReactionButton`: the button and the mood row
+
+**Firestore:** reads and writes `posts/{postId}/reactions/{userId}`, and updates `reactionCounts` on `posts`.
+
+**Firebase console steps:**
+- Publish the new `firestore.rules` in Firestore Database → Rules.
+- No index is needed: each reaction is read directly by its post and user ID.
+
+**How to test:**
+1. Logged out, tap React on a post. The login page opens.
+2. Log in. Tap React: the row of 6 moods opens. Tap ❤️. The button shows "❤️ Love" and the total goes up by 1.
+3. Tap the button and pick 😊. It switches to "😊 Happy" and the total stays the same.
+4. Tap the button and pick 😊 again. The reaction is removed, the button says "React" and the total goes down by 1.
+5. Close and reopen the app. Your reaction is still shown.
+6. React to your own post. It works.
+7. With two accounts, react to the same post. Check in the console that `reactionCounts` matches the documents in that post's `reactions`.
+8. Turn off the internet and react. The button goes back and an error shows.
+
+**Notes / limits:**
+- Reactions are the 6 moods (team decision 2026-11-24). Post types are never reactions.
+- The rules check every count change against the user's own reaction in the same step, so the counts can't be changed any other way.
+- The Comment button stays hidden until Task 9. Share is still only the look.
+- Blocked users can't react or remove their reaction (blocking comes in Task 17).
+- The row of moods closes when you pick one or tap React again.

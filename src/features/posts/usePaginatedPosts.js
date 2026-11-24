@@ -1,13 +1,32 @@
 // Hook for the For You feed: loads posts page by page.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { friendlyError } from "../../utils/errors";
+import { fetchMyReactions } from "../reactions/reactionService";
 import { fetchPostsPage } from "./postService";
 
-// Loads the first page when it starts. Returns the posts loaded so far, the
+// Loads one page of posts (see fetchPostsPage). When uid is given, each post
+// also gets myReaction: that user's reaction to it, or null.
+async function fetchPageWithMyReactions(afterSnapshot, uid) {
+  const page = await fetchPostsPage(afterSnapshot);
+  if (!uid) return page;
+  const myReactions = await fetchMyReactions(
+    page.posts.map((post) => post.id),
+    uid,
+  );
+  return {
+    ...page,
+    posts: page.posts.map((post) => ({
+      ...post,
+      myReaction: myReactions[post.id] ?? null,
+    })),
+  };
+}
+
+// Takes the logged-in user's ID (or null). Loads the first page when it starts. Returns the posts loaded so far, the
 // loading states, an error message (or null), and three functions: loadMore
 // (next page, at the end of the list), refresh (pull to refresh, starts
 // again from the newest post) and retry (after an error on the first page).
-export default function usePaginatedPosts() {
+export default function usePaginatedPosts(uid) {
   const [posts, setPosts] = useState([]);
   const [hasMore, setHasMore] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
@@ -25,7 +44,7 @@ export default function usePaginatedPosts() {
     isBusyRef.current = true;
     setErrorMessage(null);
     try {
-      const page = await fetchPostsPage(null);
+      const page = await fetchPageWithMyReactions(null, uid);
       lastSnapshotRef.current = page.lastSnapshot;
       setPosts(page.posts);
       setHasMore(page.hasMore);
@@ -34,7 +53,7 @@ export default function usePaginatedPosts() {
     } finally {
       isBusyRef.current = false;
     }
-  }, []);
+  }, [uid]);
 
   useEffect(() => {
     loadFirstPage().finally(() => setIsLoading(false));
@@ -47,7 +66,7 @@ export default function usePaginatedPosts() {
     setIsLoadingMore(true);
     setErrorMessage(null);
     try {
-      const page = await fetchPostsPage(lastSnapshotRef.current);
+      const page = await fetchPageWithMyReactions(lastSnapshotRef.current, uid);
       lastSnapshotRef.current = page.lastSnapshot;
       setPosts((currentPosts) => [...currentPosts, ...page.posts]);
       setHasMore(page.hasMore);
@@ -57,7 +76,7 @@ export default function usePaginatedPosts() {
       isBusyRef.current = false;
       setIsLoadingMore(false);
     }
-  }, [hasMore]);
+  }, [hasMore, uid]);
 
   // Pull to refresh: loads the newest posts again.
   const refresh = useCallback(async () => {

@@ -21,6 +21,17 @@ service cloud.firestore {
         || mood in ['happy', 'sad', 'angry', 'love', 'surprised', 'funny'];
     }
 
+    // True if the value is one of the 6 user moods (not empty). Reactions to
+    // posts are moods too.
+    function isMood(value) {
+      return value in ['happy', 'sad', 'angry', 'love', 'surprised', 'funny'];
+    }
+
+    // True if the logged-in user has a profile and is not blocked.
+    function isNotBlocked() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.banned == false;
+    }
+
     // True if the post type is one of the 6 post types (keep in sync with
     // postTypes.js). Post types are never moods.
     function isValidPostType(postType) {
@@ -113,11 +124,64 @@ service cloud.firestore {
             && getAfter(/databases/$(database)/documents/postImages/$(postId)).data.ownerId == request.auth.uid));
     }
 
+    // How much one mood's count changes when a user's reaction goes from
+    // oldReaction to newReaction (each a mood or null): +1, -1 or 0.
+    function countChange(mood, oldReaction, newReaction) {
+      return (newReaction == mood ? 1 : 0) - (oldReaction == mood ? 1 : 0);
+    }
+
+    // True if a change to a post only changes its reaction counts, and by
+    // exactly what the user's own reaction change adds and removes in the same
+    // step. So nobody can change the counts in any other way.
+    function isValidReactionCountUpdate(postId) {
+      let reactionPath = /databases/$(database)/documents/posts/$(postId)/reactions/$(request.auth.uid);
+      let oldReaction = exists(reactionPath) ? get(reactionPath).data.reaction : null;
+      let newReaction = existsAfter(reactionPath) ? getAfter(reactionPath).data.reaction : null;
+      let oldCounts = resource.data.reactionCounts;
+      let newCounts = request.resource.data.reactionCounts;
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactionCounts'])
+        && oldReaction != newReaction
+        && hasExactly(newCounts, ['happy', 'sad', 'angry', 'love', 'surprised', 'funny'])
+        && newCounts.happy == oldCounts.happy + countChange('happy', oldReaction, newReaction)
+        && newCounts.sad == oldCounts.sad + countChange('sad', oldReaction, newReaction)
+        && newCounts.angry == oldCounts.angry + countChange('angry', oldReaction, newReaction)
+        && newCounts.love == oldCounts.love + countChange('love', oldReaction, newReaction)
+        && newCounts.surprised == oldCounts.surprised + countChange('surprised', oldReaction, newReaction)
+        && newCounts.funny == oldCounts.funny + countChange('funny', oldReaction, newReaction);
+    }
+
+    // True if the post's count for this mood changes by `change` (1 or -1) in
+    // the same step, so a reaction can't be saved without its count.
+    function isPostCountChanged(postId, mood, change) {
+      let postPath = /databases/$(database)/documents/posts/$(postId);
+      return getAfter(postPath).data.reactionCounts[mood] == get(postPath).data.reactionCounts[mood] + change;
+    }
+
     // Posts: anyone, even logged out, can read them (the For You feed). A
-    // logged-in user can create a valid post as themselves.
+    // logged-in user can create a valid post as themselves. Any logged-in user
+    // who isn't blocked can change the reaction counts, only together with
+    // their own reaction (users can react to their own posts too).
     match /posts/{postId} {
       allow get, list: if true;
       allow create: if request.auth != null && isValidNewPost(postId);
+      allow update: if request.auth != null
+        && isNotBlocked()
+        && isValidReactionCountUpdate(postId);
+
+      // Reactions: one per user per post, saved under the user's ID. Anyone
+      // can read them. Users can set, switch or remove only their own, to one
+      // of the 6 moods, together with the post's count.
+      match /reactions/{uid} {
+        allow get, list: if true;
+        allow create, update: if isCurrentUser(uid)
+          && isNotBlocked()
+          && hasExactly(request.resource.data, ['reaction'])
+          && isMood(request.resource.data.reaction)
+          && isPostCountChanged(postId, request.resource.data.reaction, 1);
+        allow delete: if isCurrentUser(uid)
+          && isNotBlocked()
+          && isPostCountChanged(postId, resource.data.reaction, -1);
+      }
     }
 
     // Post photos: anyone can read one photo (not list them all). Created only

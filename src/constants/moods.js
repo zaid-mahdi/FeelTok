@@ -6,36 +6,42 @@ import { COLORS } from "../theme/colors";
 export const USER_MOODS = [
   {
     key: "happy",
+    label: "Happy",
     emoji: "😊",
     ringColor: COLORS.moodHappyRing,
     tintColor: COLORS.moodHappyTint,
   },
   {
     key: "sad",
+    label: "Sad",
     emoji: "😢",
     ringColor: COLORS.moodSadRing,
     tintColor: COLORS.moodSadTint,
   },
   {
     key: "angry",
+    label: "Angry",
     emoji: "😠",
     ringColor: COLORS.moodAngryRing,
     tintColor: COLORS.moodAngryTint,
   },
   {
     key: "love",
+    label: "Love",
     emoji: "❤️",
     ringColor: COLORS.moodLoveRing,
     tintColor: COLORS.moodLoveTint,
   },
   {
     key: "surprised",
+    label: "Surprised",
     emoji: "😮",
     ringColor: COLORS.moodSurprisedRing,
     tintColor: COLORS.moodSurprisedTint,
   },
   {
     key: "funny",
+    label: "Funny",
     emoji: "😂",
     ringColor: COLORS.moodFunnyRing,
     tintColor: COLORS.moodFunnyTint,

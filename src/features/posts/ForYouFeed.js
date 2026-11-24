@@ -14,6 +14,7 @@ import ErrorText from "../../components/ErrorText";
 import LoadingSpinner from "../../components/LoadingSpinner";
 import { COLORS } from "../../theme/colors";
 import { FONTS } from "../../theme/fonts";
+import { useAuth } from "../auth/AuthContext";
 import PostCard from "./PostCard";
 import usePaginatedPosts from "./usePaginatedPosts";
 
@@ -21,6 +22,7 @@ import usePaginatedPosts from "./usePaginatedPosts";
 // list, refreshes when pulled down, and refreshes when Home is opened again
 // (for example after posting).
 export default function ForYouFeed() {
+  const { user } = useAuth();
   const {
     posts,
     isLoading,
@@ -30,7 +32,7 @@ export default function ForYouFeed() {
     loadMore,
     refresh,
     retry,
-  } = usePaginatedPosts();
+  } = usePaginatedPosts(user?.uid ?? null);
 
   // Home stays open behind other pages, so it refreshes each time it comes
   // back into view, but not the first time (the first page is loading then).
