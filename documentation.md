@@ -557,12 +557,12 @@ There are two separate lists of six: the **moods** (happy, sad, angry, love, sur
 
 ### Task 11 — My profile
 
-**What it does:** The Profile tab is built from the designer's mockup. At the top: a share button (look only), your @username and a ☰ button. Then your avatar (photo or initials, with your mood ring and emoji), your name, a "Feeling happy" mood pill that opens the Mood tab, your bio, and three numbers: posts, friends and reactions (all reactions your posts got). "Edit profile" opens a pop-up to change your photo (cropped square, 300 x 300 px) and bio (up to 150 characters). "Invite friends" opens the Friend List tab. Below is "My posts" with chips to show all posts or only one post type, 10 at a time. ☰ opens "Account settings": for now it shows your username and email, and only Log out works. The Mood tab shows your current mood; tap it and pick one of the 6 moods to change it. Everything stays after closing the app.
+**What it does:** The Profile tab is built from the designer's mockup. At the top: a share button (look only), your @username and a ☰ button. Then your avatar (photo or initials, with your mood ring and emoji), your name, a "Feeling happy" mood pill that opens the Mood tab, your bio, and three numbers: posts, friends and reactions (all reactions your posts got). "Edit profile" opens a pop-up to change your photo (cropped square, 300 x 300 px) and bio (up to 150 characters). "Invite friends" opens the Friend List tab. Below is "My posts" with chips to show all posts or only one post type, 10 at a time. ☰ opens "Account settings": for now it shows your username and email, and only Log out works. The Mood tab shows your current mood and lets you pick a new one (see "Task 11 (follow-up) — Mood tab design"). Everything stays after closing the app.
 
 **Files:**
 - `app/(tabs)/profile.js`: the Profile tab: header, my posts, and the two pop-ups
 - `app/(tabs)/_layout.js`: Profile has no default title bar (the design has its own top bar)
-- `app/(tabs)/mood.js`: the Mood tab (plain until its mockup arrives)
+- `app/(tabs)/mood.js`: the Mood tab
 - `src/features/profile/ProfileHeader.js`: everything above the posts
 - `src/features/profile/MoodPill.js`: the "Feeling happy" pill
 - `src/features/profile/ProfileStats.js`: the posts / friends / reactions boxes
@@ -570,7 +570,6 @@ There are two separate lists of six: the **moods** (happy, sad, angry, love, sur
 - `src/features/profile/AccountSettingsModal.js`: the Account settings pop-up
 - `src/features/profile/useProfileStats.js`: loads the post and reaction numbers
 - `src/features/profile/useProfilePhoto.js`: loads profile photos once and shows a new photo everywhere
-- `src/features/profile/CurrentMood.js`, `MoodPicker.js`: the Mood tab's parts
 - `src/features/profile/Avatar.js`: now shows the user's photo when they have one (initials otherwise)
 - `src/features/profile/profileService.js`: saves the photo, bio and mood
 - `src/features/posts/PostTypeFilter.js`: the All / post type chips
@@ -588,14 +587,14 @@ There are two separate lists of six: the **moods** (happy, sad, angry, love, sur
 **Main functions / hooks / components:**
 - `saveProfilePhoto`: saves the photo and turns `hasPhoto` on in one batch, together with `authorHasPhoto` on all the user's posts
 - `saveBio`, `saveMood`: save the bio, and the current mood with its time
-- `fetchAuthorStats`: asks Firestore to count a user's posts and add up their reactions, without downloading the posts
+- `fetchAuthorStats`: reads a user's posts once, counts them and adds up their reactions (no extra index needed)
 - `useProfileStats`: the numbers for the profile, loaded again after a refresh or a deleted post
 - `useProfilePhoto`: returns a user's photo for an avatar; `rememberProfilePhoto` shows a new photo at once
 - `prepareProfilePhoto`: crops the photo square, makes it 300 x 300 px and small enough
 - `PostList`: the post list with pages, pull to refresh, a post type filter, and loading, empty and error states
 - `AppModal`: the pop-up card used by Edit profile and Account settings
 
-**Firestore:** reads and writes `users/{uid}` (bio, mood, moodUpdatedAt, hasPhoto) and `profileImages/{uid}`; reads `posts` where `authorId` is the user (and `postType` when filtered), newest first; counts those posts and adds up their `reactionCounts`; updates `authorHasPhoto` on the user's posts.
+**Firestore:** reads and writes `users/{uid}` (bio, mood, moodUpdatedAt, hasPhoto) and `profileImages/{uid}`; reads `posts` where `authorId` is the user (and `postType` when filtered), newest first; reads all of them once to count them and add up their `reactionCounts`; updates `authorHasPhoto` on the user's posts.
 
 **Firebase console steps:**
 - Publish the new `firestore.rules` in Firestore Database → Rules.
@@ -607,14 +606,13 @@ There are two separate lists of six: the **moods** (happy, sad, angry, love, sur
 1. Log in and open Profile. It shows your @username, avatar, name, mood pill, bio and the numbers. Only your posts are listed, newest first, and more load when you scroll.
 2. Tap a post type chip: only posts of that type show. A type you never used says "You have no … posts yet." Tap All to see everything.
 3. Tap Edit profile, change the photo and bio, and tap Save. The pop-up closes and the new photo and bio show at once, also on your posts and comments.
-4. Tap the mood pill: the Mood tab opens. Tap the mood, pick another one, go back: the pill and avatar ring changed.
+4. Tap the mood pill: the Mood tab opens. Pick another mood, tap "Set as my mood", go back: the pill and avatar ring changed.
 5. Tap Invite friends: the Friend List tab opens.
 6. Delete one of your posts: the posts and reactions numbers go down.
 7. Tap ☰: Account settings shows your username and email; tap Log out and you are back on Home.
 8. Close and reopen the app: photo, bio and mood are still there.
 
 **Notes / limits:**
-- The Mood tab has no mockup yet, so it uses plain buttons.
 - The big name is the display name, which is the username (there is no full-name field). Post cards still show @username only (team decision).
 - "friends" shows 0 until the friends tasks (13 and 14).
 - Share does nothing (look only, team decision).
@@ -622,3 +620,37 @@ There are two separate lists of six: the **moods** (happy, sad, angry, love, sur
 - A profile photo can be changed but not removed (not in the plan).
 - Other people's new photos show after reopening the app; your own shows at once.
 - The current mood is just one mood: no history or chart (out of scope).
+
+### Task 11 (follow-up) — Mood tab design
+
+**What it does:** The Mood tab is built from the designer's mockup. At the top: "My mood" and "Your friends see this on your profile and in their friend list." A card shows "Right now you're feeling", your current mood with its emoji, and when you set it ("Updated 2 hours ago"); with no mood it says "No mood set" and "Pick a mood below". Under "How are you feeling?" the 6 moods are shown as cards, 3 per row, with your current mood highlighted. Tapping a card only picks it; the button at the bottom then says "Set as my mood" and saves it. While the picked mood is already your current mood, the button is grey and says "This is your current mood" ("Pick a mood" when you have none).
+
+**Files:**
+- `app/(tabs)/mood.js`: the Mood tab: header, current mood card, mood grid and the save button
+- `app/(tabs)/_layout.js`: Mood has no default title bar (the design has its own header)
+- `src/features/profile/CurrentMood.js`: the "Right now you're feeling" card
+- `src/features/profile/MoodPicker.js`: the grid of the 6 mood cards
+- `src/features/profile/MoodEmojiCircle.js`: a mood's emoji in a circle of the mood's colour
+- `src/utils/time.js`: `formatTimeAgo` for "Updated 2 hours ago"
+
+**Main functions / hooks / components:**
+- `CurrentMood`: shows the current mood, or "No mood set"
+- `MoodPicker`: the 6 mood cards; the selected one gets the mood's tint and border
+- `formatTimeAgo`: turns a time into "just now", "5 minutes ago", "2 hours ago", "yesterday", "3 days ago" or "on 12 Nov"
+- `saveMood` (from Task 11): saves the mood and the time it was set
+
+**Firestore:** updates `mood` and `moodUpdatedAt` on `users/{uid}` (already allowed by the Task 11 rules).
+
+**Firebase console steps:** none. The rules and indexes don't change.
+
+**How to test:**
+1. Open the Mood tab. The card shows your current mood and when you set it; that mood's card is highlighted and the button is grey ("This is your current mood").
+2. Tap another mood. It is highlighted, and the button turns purple: "Set as my mood". Nothing is saved yet.
+3. Tap the button. The top card shows the new mood, "Updated just now", and the button turns grey again.
+4. Open Profile: the mood pill and the avatar ring show the new mood.
+5. With an account that never set a mood, the card says "No mood set" and the button says "Pick a mood".
+
+**Notes / limits:**
+- A mood can be changed but not cleared (there is no "No mood" option on this page).
+- Only the current mood is kept: no history (out of scope).
+- Accounts that set a mood before this change may have no saved time; then the "Updated" line is hidden.

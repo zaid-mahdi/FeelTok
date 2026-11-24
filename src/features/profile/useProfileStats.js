@@ -13,7 +13,9 @@ export default function useProfileStats(uid) {
     if (!uid) return;
     try {
       setStats(await fetchAuthorStats(uid));
-    } catch {
+    } catch (error) {
+      // Shown in the Expo terminal, so a missing index or rule can be found.
+      console.warn("Could not load the profile numbers:", error);
       setStats({ postCount: null, reactionCount: null });
     }
   }, [uid]);

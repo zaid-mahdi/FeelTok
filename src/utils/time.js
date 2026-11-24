@@ -19,3 +19,24 @@ export function formatPostTime(timestamp) {
   if (age < 7 * DAY) return `${Math.floor(age / DAY)}d`;
   return date.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 }
+
+// Takes a count and a unit ("minute") and returns "1 minute" or "5 minutes".
+function pluralize(count, unit) {
+  return `${count} ${unit}${count === 1 ? "" : "s"}`;
+}
+
+// Takes a Firestore timestamp (or null while it is being saved) and returns a
+// text to follow "Updated" on the Mood tab: "just now", "5 minutes ago",
+// "2 hours ago", "yesterday", "3 days ago", or "on 12 Nov".
+export function formatTimeAgo(timestamp) {
+  if (!timestamp) return "just now";
+  const date = timestamp.toDate();
+  const age = Date.now() - date.getTime();
+
+  if (age < MINUTE) return "just now";
+  if (age < HOUR) return `${pluralize(Math.floor(age / MINUTE), "minute")} ago`;
+  if (age < DAY) return `${pluralize(Math.floor(age / HOUR), "hour")} ago`;
+  if (age < 2 * DAY) return "yesterday";
+  if (age < 7 * DAY) return `${pluralize(Math.floor(age / DAY), "day")} ago`;
+  return `on ${date.toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`;
+}

@@ -45,7 +45,7 @@ export default function TabsLayout() {
       />
       <Tabs.Screen
         name="mood"
-        options={{ title: "Mood" }}
+        options={{ title: "Mood", headerShown: false }}
         listeners={{ tabPress: handleLoginOnlyTabPress }}
       />
       <Tabs.Screen

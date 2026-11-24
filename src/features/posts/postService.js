@@ -1,9 +1,7 @@
 // Post service: the Firestore calls for posts and their photos.
 import {
   collection,
-  count,
   doc,
-  getAggregateFromServer,
   getDoc,
   getDocs,
   limit,
@@ -11,7 +9,6 @@ import {
   query,
   serverTimestamp,
   startAfter,
-  sum,
   where,
   writeBatch,
 } from "firebase/firestore";
@@ -87,29 +84,21 @@ export async function fetchPostsPage(
 }
 
 // Takes a user ID and returns { postCount, reactionCount }: how many posts
-// they have, and how many reactions all their posts got together. Firestore
-// counts and adds them up on the server, so the posts are not downloaded.
+// they have, and how many reactions all their posts got together. It reads
+// the user's posts once and adds them up here, because Firestore's own
+// sums over several fields would need extra indexes.
 export async function fetchAuthorStats(authorId) {
-  const authorPosts = query(
-    collection(db, "posts"),
-    where("authorId", "==", authorId),
+  const snapshot = await getDocs(
+    query(collection(db, "posts"), where("authorId", "==", authorId)),
   );
-  // One question can ask for at most 5 results, so the 6 moods are split.
-  const moodKeys = USER_MOODS.map((mood) => mood.key);
-  const sumsOfMoods = (keys) =>
-    Object.fromEntries(keys.map((key) => [key, sum(`reactionCounts.${key}`)]));
-  const [firstAnswer, secondAnswer] = await Promise.all([
-    getAggregateFromServer(authorPosts, {
-      postCount: count(),
-      ...sumsOfMoods(moodKeys.slice(0, 4)),
-    }),
-    getAggregateFromServer(authorPosts, sumsOfMoods(moodKeys.slice(4))),
-  ]);
-  const totals = { ...firstAnswer.data(), ...secondAnswer.data() };
-  return {
-    postCount: totals.postCount,
-    reactionCount: moodKeys.reduce((total, key) => total + (totals[key] ?? 0), 0),
-  };
+  let reactionCount = 0;
+  snapshot.docs.forEach((postSnapshot) => {
+    const counts = postSnapshot.data().reactionCounts ?? {};
+    USER_MOODS.forEach((mood) => {
+      reactionCount += counts[mood.key] ?? 0;
+    });
+  });
+  return { postCount: snapshot.size, reactionCount };
 }
 
 // A Firestore batch can hold at most 500 changes.
