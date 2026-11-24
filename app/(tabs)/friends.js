@@ -1,7 +1,11 @@
-// Friends tab: a placeholder until its design is ready.
+// Friend List tab: a placeholder until its design is ready.
+import { Redirect } from "expo-router";
 import PlaceholderPage from "../../src/components/PlaceholderPage";
+import { useAuth } from "../../src/features/auth/AuthContext";
 
-// Shows the Friends placeholder.
+// Shows the Friend List placeholder. Logged-out users are sent to login.
 export default function FriendsScreen() {
-  return <PlaceholderPage name="Friends" />;
+  const { user } = useAuth();
+  if (!user) return <Redirect href="/login" />;
+  return <PlaceholderPage name="Friend List" />;
 }

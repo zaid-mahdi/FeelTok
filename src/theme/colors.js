@@ -30,6 +30,9 @@ export const COLORS = {
   lightPink: "#FFF1F6",
   lightPurple: "#F0EAFF",
 
+  // Light green behind the "Posted" message on Home
+  successTint: "#E7F5EF",
+
   // The dashed outline of "Add a photo" on the New post page
   photoBorder: "rgba(108, 44, 255, 0.35)",
 

@@ -113,15 +113,18 @@ service cloud.firestore {
             && getAfter(/databases/$(database)/documents/postImages/$(postId)).data.ownerId == request.auth.uid));
     }
 
-    // Posts: a logged-in user can create a valid post as themselves.
+    // Posts: anyone, even logged out, can read them (the For You feed). A
+    // logged-in user can create a valid post as themselves.
     match /posts/{postId} {
+      allow get, list: if true;
       allow create: if request.auth != null && isValidNewPost(postId);
     }
 
-    // Post photos: created only together with their post (same ID), by the
-    // post's author, as base64 text of up to 900,000 characters, so it always
-    // fits in a Firestore document.
+    // Post photos: anyone can read one photo (not list them all). Created only
+    // together with their post (same ID), by the post's author, as base64 text
+    // of up to 900,000 characters, so it always fits in a Firestore document.
     match /postImages/{imageId} {
+      allow get: if true;
       allow create: if request.auth != null
         && hasExactly(request.resource.data, ['ownerId', 'data', 'createdAt'])
         && request.resource.data.ownerId == request.auth.uid

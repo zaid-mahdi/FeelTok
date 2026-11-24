@@ -6,7 +6,7 @@ This file describes the project as it is built today. It is updated after every 
 
 FeelTok is a small social app where emotions are central. Users will use it as a mobile app, and admins will use a dashboard in the browser. Both come from the same project.
 
-So far, sign up, login and forgot password work and have their final design. Roles work: the app works on phones and in the browser, and admins sign in at `/admin` in the browser. Users can create posts on the New post page. All other pages are placeholders. The team's designer is still working on those pages.
+So far, sign up, login and forgot password work and have their final design. Roles work: the app works on phones and in the browser, and admins sign in at `/admin` in the browser. Users can create posts on the New post page, and everyone, even logged out, can read all posts in the For You feed on Home. All other pages are placeholders. The team's designer is still working on those pages.
 
 **Tech stack:** Expo (React Native) with Expo Router, JavaScript only, Firebase Authentication (email and password) and Cloud Firestore. We use the free Firebase plan.
 
@@ -23,17 +23,17 @@ So far, sign up, login and forgot password work and have their final design. Rol
 | Folder or file | What it is for |
 |---|---|
 | `app/` | The screens. Each file is one page. |
-| `app/(tabs)/` | The 5 tabs: Home, Create (opens the New post page), Mood, Friends, Profile |
+| `app/(tabs)/` | The 5 tabs: Home, Friend List, Create (opens the New post page), Mood, Profile |
 | `app/admin/` | The admin area: admin sign-in and dashboard (web only) |
 | `src/lib/` | Firebase setup |
 | `src/features/auth/` | Everything about sign up, login and passwords |
 | `src/features/profile/` | Usernames, user profiles and the avatar |
-| `src/features/posts/` | Creating posts: the New post page and its parts |
+| `src/features/posts/` | Posts: the New post page, the For You feed and the post card |
 | `src/features/admin/` | The admin sign-in page |
 | `src/components/` | Small pieces shared by many screens |
 | `src/constants/` | Fixed lists: the 6 user moods and the 6 post types (two separate lists) |
 | `src/theme/` | Colours and fonts |
-| `src/utils/` | Helpers: error messages, text checks, photos and the web/mobile check |
+| `src/utils/` | Helpers: error messages, text checks, photos, post times and the web/mobile check |
 | `__tests__/` | Empty, for tests |
 | `assets/` | Images, icons and the logo |
 | `firestore.rules` | The database security rules |
@@ -64,7 +64,8 @@ There are two separate lists of six: the **moods** (happy, sad, angry, love, sur
 - Nobody can delete profiles from the app yet, and nobody can change or delete usernames.
 - A logged-in user who is not blocked can create a post as themselves, with their real username, a valid type and mood, text that isn't empty (up to 5,000 characters) and all counts at 0.
 - A post photo can only be created together with its post, by its author, and must be small enough for one document.
-- Posts and photos can't be read, edited or deleted yet. Later tasks open these.
+- Anyone, even logged out, can read posts and list them (the For You feed), and read one post photo at a time. Nobody can list all photos.
+- Posts and photos can't be edited or deleted yet. Later tasks open deleting.
 - Everything else is locked. Each task opens only what it needs.
 
 ---
@@ -349,3 +350,64 @@ There are two separate lists of six: the **moods** (happy, sad, angry, love, sur
 - The mood list that opens from "Change mood", the selected post type look and the photo preview are not in the mockup.
 - The Mood tab is a placeholder. Changing your current mood comes later.
 - Accounts made only in the Firebase console have no profile, so they can't post.
+
+### Task 7 — Public "For You" feed + pagination
+
+**What it does:** Home now shows the For You feed from the designer's mockup: every post, newest first, also for logged-out users. It loads 10 posts at a time and loads the next 10 when you scroll near the end. Pulling down refreshes it, and it also refreshes when you come back to Home, so a new post shows at the top, with a short "Posted!" message. The app has the designed tab bar: Home, Friend List, Create, Mood and Profile. Logged-out users can read Home; tapping any other tab sends them to login.
+
+**Files:**
+- `app/(tabs)/index.js`: Home: the header, the For You feed (Friends shows a placeholder until Task 15) and the "Posted" message
+- `app/new-post.js`: tells Home that a post was just saved
+- `src/features/posts/PostedMessage.js`: the "Posted! Your post is now in the feed." message, shown for 3 seconds
+- `src/features/posts/postedNotice.js`: remembers that a post was just saved, so Home shows the message once
+- `src/theme/colors.js`: the light green behind the message
+- `app/(tabs)/_layout.js`: the designed tab bar; Home is public, the other tabs need a login
+- `app/(tabs)/friends.js`, `mood.js`: send logged-out users to login
+- `app/(tabs)/profile.js`: goes to Home after logging out
+- `src/components/AppTabBar.js`: the tab bar from the mockup
+- `src/features/posts/HomeHeader.js`: the logo and the For You / Friends switch
+- `src/features/posts/ForYouFeed.js`: the list: loading, empty and error states, pull to refresh, loading more
+- `src/features/posts/usePaginatedPosts.js`: loads the posts page by page
+- `src/features/posts/PostCard.js`: one post: author, mood, time, type, text with "see more", photo, counts, Share
+- `src/features/posts/PostTypeTag.js`: the small post type tag
+- `src/features/posts/PostPhoto.js`: loads and shows a post's photo
+- `src/features/posts/PostStats.js`: the top 3 reactions with the total, and the number of comments
+- `src/features/posts/postService.js`: now also reads a page of posts and a post's photo
+- `src/features/profile/Avatar.js`: now has the mood emoji badge, and each user gets one of three circle colours
+- `src/utils/time.js`: shows when a post was made ("2h", "Yesterday")
+- `assets/images/`: the tab bar icons and the Share icon
+- `firestore.rules`: anyone can read posts and post photos
+
+**Main functions / hooks / components:**
+- `fetchPostsPage`: loads 10 posts, newest first, starting after the last one already loaded
+- `fetchPostPhoto`: loads one post's photo
+- `usePaginatedPosts`: gives the posts, the loading states and `loadMore`, `refresh` and `retry`
+- `ForYouFeed`, `PostCard`, `PostTypeTag`, `PostPhoto`, `PostStats`, `HomeHeader`, `AppTabBar`: the parts of the page
+- `formatPostTime`: turns a date into "Just now", "5m", "2h", "Yesterday", "3d" or a date
+
+**Firestore:** reads `posts` (newest first, 10 at a time) and `postImages` (one per post with a photo).
+
+**Firebase console steps:**
+- Publish the new `firestore.rules` in Firestore Database → Rules.
+- No index is needed: sorting by one field works without one.
+
+**How to test:**
+1. Log out, then open the app. Home shows all posts, newest first, without logging in.
+2. With more than 10 posts, scroll down. More posts load at the end until the oldest one.
+3. Pull down from the top. The feed reloads.
+4. A long post shows "...see more". Tap it and the whole text shows.
+5. A post with a photo shows it across the card. The card shows the author, "feeling <mood>", the time, the post type tag, the reactions total and the comments count.
+6. Logged out, tap Friend List, Create, Mood or Profile. The login page opens.
+7. Log in, tap Create and post something. Back on Home, "Posted! Your post is now in the feed." shows for 3 seconds and the new post is at the top. Closing New post with ✕ shows no message.
+8. Tap "Friends" at the top. It says "Coming soon" (Task 15).
+9. With no posts at all, Home says "No posts yet. Be the first!". With no internet, it shows an error and "Try again".
+
+**Notes / limits:**
+- Your own posts show in the For You feed too (team decision). The "Posted" message is not in the mockups yet.
+- Team decisions for this mockup: the card shows only the @username (no full name), Share is only the look (it does nothing), and React and Comment are hidden until Tasks 8 and 9.
+- The "•••" menu on each card is hidden until Task 10 (delete post).
+- The Friends feed is a placeholder until Task 15.
+- The avatar ring and emoji badge show the mood the author picked for that post.
+- Avatar circle colours (purple, pink or Midnight Ink) are picked from the username, so the same user always has the same colour.
+- Photos are loaded one by one for each card and kept while the app is open.
+- "See more" shows on posts over 180 characters or 4 lines.

@@ -39,7 +39,7 @@ The code is organised by feature: everything about login is in one folder, and l
 | `src/lib/firebase.js` | Firebase setup |
 | `src/constants/` | Fixed lists: the 6 user moods and the 6 post types |
 | `src/theme/` | Colours and fonts |
-| `src/utils/` | Error messages, text checks and photo helpers |
+| `src/utils/` | Error messages, text checks, photo helpers and post times |
 | `assets/` | Images, icons and the logo |
 | `__tests__/` | Empty, for tests |
 | `firestore.rules` | Database security rules, pasted into the Firebase console |

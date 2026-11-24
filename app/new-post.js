@@ -13,11 +13,18 @@ import ErrorText from "../src/components/ErrorText";
 import LoadingSpinner from "../src/components/LoadingSpinner";
 import { useAuth } from "../src/features/auth/AuthContext";
 import NewPostForm from "../src/features/posts/NewPostForm";
+import { markJustPosted } from "../src/features/posts/postedNotice";
 import { COLORS } from "../src/theme/colors";
 import { FONTS } from "../src/theme/fonts";
 
 // Closes the page and goes back to Home.
 function goHome() {
+  router.dismissTo("/");
+}
+
+// Goes back to Home after a post is saved, and tells Home to show "Posted".
+function goHomeAfterPosting() {
+  markJustPosted();
   router.dismissTo("/");
 }
 
@@ -45,7 +52,7 @@ export default function NewPostScreen() {
       </View>
 
       {profile ? (
-        <NewPostForm profile={profile} onPosted={goHome} />
+        <NewPostForm profile={profile} onPosted={goHomeAfterPosting} />
       ) : (
         <View style={styles.message}>
           <ErrorText
