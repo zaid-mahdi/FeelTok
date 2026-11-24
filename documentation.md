@@ -6,7 +6,7 @@ This file describes the project as it is built today. It is updated after every 
 
 FeelTok is a small social app where emotions are central. Users will use it as a mobile app, and admins will use a dashboard in the browser. Both come from the same project.
 
-So far, sign up, login and forgot password work and have their final design. Roles work: the app works on phones and in the browser, and admins sign in at `/admin` in the browser. Users can create posts on the New post page, and everyone, even logged out, can read all posts in the For You feed on Home. Logged-in users react to posts with one of the 6 moods, and comment on the post page. All other pages are placeholders. The team's designer is still working on those pages.
+So far, sign up, login and forgot password work and have their final design. Roles work: the app works on phones and in the browser, and admins sign in at `/admin` in the browser. Users can create posts on the New post page, and everyone, even logged out, can read all posts in the For You feed on Home. Logged-in users react to posts with one of the 6 moods, and comment on the post page. Users can delete their own posts. All other pages are placeholders. The team's designer is still working on those pages.
 
 **Tech stack:** Expo (React Native) with Expo Router, JavaScript only, Firebase Authentication (email and password) and Cloud Firestore. We use the free Firebase plan.
 
@@ -74,7 +74,8 @@ There are two separate lists of six: the **moods** (happy, sad, angry, love, sur
 - The only change anyone can make to a post is its reaction counts, and only by exactly what their own reaction adds or removes in the same step.
 - Anyone can read comments. A logged-in user who is not blocked can add comments as themselves (up to 500 characters, not only spaces) and delete only their own. Deleting other people's comments is for admins (Task 17). Comments can't be edited.
 - Adding or deleting a comment must change the post's comment count by exactly 1 in the same step.
-- Posts and photos can't be edited or deleted yet. Later tasks open deleting.
+- Authors can delete their own posts, always together with the post's photo. When a post is deleted, its author may delete all its comments and reactions (also other people's) in the same step. Comments and reactions left over from a deleted post can be cleaned up by any logged-in user.
+- Posts and photos can't be edited.
 - Everything else is locked. Each task opens only what it needs.
 
 ---
@@ -513,3 +514,41 @@ There are two separate lists of six: the **moods** (happy, sad, angry, love, sur
 - Comments are up to 500 characters. All comments of a post load at once (no pages).
 - The rules can check that the comment count changes by exactly 1, but not which comment it belongs to, so the count could drift only through someone writing their own requests outside the app.
 - The "Delete" link and the "Log in to comment" text are not in the mockup.
+
+### Task 10 — Delete own post
+
+**What it does:** Your own posts have a "•••" button in the top corner (other people's posts don't). It opens a small menu with "Delete post", from the designer's mockup. After you confirm, the post is deleted together with its photo, all its comments and all its reactions, so nothing is left behind. In the feed the card disappears; on the post page you go back.
+
+**Files:**
+- `src/features/posts/PostMenu.js`: the "•••" button and its menu with "Delete post"
+- `src/features/posts/PostCard.js`: shows the menu only on your own posts, asks first and deletes
+- `src/features/posts/postService.js`: `deletePost` deletes the post with everything that belongs to it
+- `src/features/posts/usePaginatedPosts.js`, `ForYouFeed.js`: take a deleted post off the feed
+- `app/post/[id].js`: goes back after the post is deleted
+- `assets/images/`: the "•••" and trash icons
+- `firestore.rules`: who can delete posts, photos, and a deleted post's comments and reactions
+
+**Main functions / hooks / components:**
+- `deletePost`: deletes the post, its photo, comments and reactions in one batch (more batches only for a post with hundreds of them). The admin dashboard will reuse it (Task 17)
+- `PostMenu`: the "•••" menu
+- `removePost` (in `usePaginatedPosts`): takes a post off the feed
+
+**Firestore:** reads `posts/{postId}/comments` and `posts/{postId}/reactions`; deletes them, `posts/{postId}` and `postImages/{postId}`.
+
+**Firebase console steps:**
+- Publish the new `firestore.rules` in Firestore Database → Rules.
+- No index is needed.
+
+**How to test:**
+1. Logged out, no post has "•••".
+2. Log in. Only your own posts have "•••".
+3. Tap "•••": the menu shows "Delete post". Tap it and cancel: nothing changes.
+4. Tap "Delete post" again and confirm. The card disappears.
+5. In the console, the post, its `postImages` document and its comments and reactions (also other people's) are all gone.
+6. Open one of your posts, delete it from the post page. You go back to the feed.
+
+**Notes / limits:**
+- Posts can't be edited (MVP).
+- Only the author can delete a post from the app. Admins will delete any post in Task 17, with the same `deletePost`.
+- The menu's only action is "Delete post" (team decision).
+- Deleting asks first with the phone's own dialog, or the browser's confirm box on the web.

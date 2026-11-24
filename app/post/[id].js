@@ -99,6 +99,7 @@ export default function PostScreen() {
                 comments.isLoading ? post.commentCount : comments.comments.length
               }
               onCommentPress={handleCommentPress}
+              onDeleted={handleBackPress}
             />
             <View style={styles.commentBox}>
               {user && profile ? (

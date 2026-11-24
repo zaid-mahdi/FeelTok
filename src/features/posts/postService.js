@@ -75,6 +75,44 @@ export async function fetchPostsPage(afterSnapshot) {
   };
 }
 
+// A Firestore batch can hold at most 500 changes.
+const MAX_BATCH_WRITES = 500;
+
+// Deletes a post with everything that belongs to it: its photo, comments and
+// reactions, so nothing is left behind. Takes the post (with id and imageId).
+// Used for your own posts, and later by the admin dashboard (Task 17).
+export async function deletePost(post) {
+  const postRef = doc(db, "posts", post.id);
+  const [commentsSnapshot, reactionsSnapshot] = await Promise.all([
+    getDocs(collection(db, "posts", post.id, "comments")),
+    getDocs(collection(db, "posts", post.id, "reactions")),
+  ]);
+  const childRefs = [...commentsSnapshot.docs, ...reactionsSnapshot.docs].map(
+    (childSnapshot) => childSnapshot.ref,
+  );
+
+  // The first batch deletes the post, its photo and as many comments and
+  // reactions as fit. The rules only let the author delete other people's
+  // comments and reactions in the same step as the post. Any left over (a
+  // post with hundreds of them) are deleted in more batches: once the post is
+  // gone, they belong to nothing.
+  const firstBatch = writeBatch(db);
+  firstBatch.delete(postRef);
+  if (post.imageId) firstBatch.delete(doc(db, "postImages", post.imageId));
+  const roomInFirstBatch = MAX_BATCH_WRITES - (post.imageId ? 2 : 1);
+  childRefs.slice(0, roomInFirstBatch).forEach((ref) => firstBatch.delete(ref));
+  await firstBatch.commit();
+
+  const leftOver = childRefs.slice(roomInFirstBatch);
+  for (let start = 0; start < leftOver.length; start += MAX_BATCH_WRITES) {
+    const batch = writeBatch(db);
+    leftOver
+      .slice(start, start + MAX_BATCH_WRITES)
+      .forEach((ref) => batch.delete(ref));
+    await batch.commit();
+  }
+}
+
 // Takes a post ID and returns the post (with its id), or null if it doesn't
 // exist.
 export async function fetchPost(postId) {

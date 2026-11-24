@@ -1,6 +1,6 @@
 // One post in the feed, from the For You feed mockup: the author, the post
 // type, the text, the photo, the counts, and the React, Comment and Share
-// buttons.
+// buttons. Your own posts also have the "•••" menu with "Delete post".
 import { Image } from "expo-image";
 import { router } from "expo-router";
 import { useState } from "react";
@@ -9,6 +9,7 @@ import ErrorText from "../../components/ErrorText";
 import { findMood } from "../../constants/moods";
 import { COLORS } from "../../theme/colors";
 import { FONTS } from "../../theme/fonts";
+import { confirmAction } from "../../utils/confirm";
 import { friendlyError } from "../../utils/errors";
 import { formatPostTime } from "../../utils/time";
 import { useAuth } from "../auth/AuthContext";
@@ -16,9 +17,11 @@ import Avatar from "../profile/Avatar";
 import ReactionButton from "../reactions/ReactionButton";
 import { applyReactionChange } from "../reactions/reactionCounts";
 import { setReaction } from "../reactions/reactionService";
+import PostMenu from "./PostMenu";
 import PostPhoto from "./PostPhoto";
 import PostStats from "./PostStats";
 import PostTypeTag from "./PostTypeTag";
+import { deletePost } from "./postService";
 
 // Long posts show only their first lines until "see more" is tapped.
 const COLLAPSED_LINES = 4;
@@ -36,16 +39,20 @@ function isLongText(text) {
 // user's reaction or null) and shows it as a card. Optional: isFullText shows
 // the whole text (the post page), commentCount replaces the post's count, and
 // onCommentPress replaces opening the post page (the post page uses it to put
-// the cursor in the comment box).
+// the cursor in the comment box), and onDeleted is called after the user
+// deletes their own post.
 export default function PostCard({
   post,
   isFullText = false,
   commentCount = post.commentCount,
   onCommentPress,
+  onDeleted,
 }) {
   const { user } = useAuth();
   const [isExpanded, setIsExpanded] = useState(false);
-  const [reactionErrorMessage, setReactionErrorMessage] = useState(null);
+  const [actionErrorMessage, setActionErrorMessage] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const isOwnPost = Boolean(user) && post.authorId === user.uid;
   const mood = findMood(post.authorMood);
   const isShortened = !isFullText && !isExpanded && isLongText(post.text);
 
@@ -76,7 +83,7 @@ export default function PostCard({
   // puts the old reaction and counts back and shows the error.
   async function handleReact(newMoodKey) {
     const before = shown;
-    setReactionErrorMessage(null);
+    setActionErrorMessage(null);
     setShownReaction({
       post,
       myReaction: newMoodKey,
@@ -90,7 +97,27 @@ export default function PostCard({
       await setReaction(post.id, user.uid, newMoodKey);
     } catch (error) {
       setShownReaction(before);
-      setReactionErrorMessage(friendlyError(error));
+      setActionErrorMessage(friendlyError(error));
+    }
+  }
+
+  // Asks first, then deletes the post with its photo, comments and
+  // reactions, and tells the page it is gone.
+  async function handleDeletePress() {
+    const isConfirmed = await confirmAction(
+      "Delete this post?",
+      "Its photo, comments and reactions will be deleted too. This can't be undone.",
+      "Delete",
+    );
+    if (!isConfirmed) return;
+    setActionErrorMessage(null);
+    setIsDeleting(true);
+    try {
+      await deletePost(post);
+      onDeleted?.(post.id);
+    } catch (error) {
+      setActionErrorMessage(friendlyError(error));
+      setIsDeleting(false);
     }
   }
 
@@ -110,7 +137,7 @@ export default function PostCard({
   }
 
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, isDeleting && styles.cardDeleting]}>
       <View style={styles.header}>
         <Avatar
           name={post.authorUsername}
@@ -125,6 +152,7 @@ export default function PostCard({
           {mood && <Text style={styles.meta}>feeling {mood.key}</Text>}
           <Text style={styles.meta}>{formatPostTime(post.createdAt)}</Text>
         </View>
+        {isOwnPost && !isDeleting && <PostMenu onDeletePress={handleDeletePress} />}
       </View>
 
       <View style={styles.body}>
@@ -186,9 +214,9 @@ export default function PostCard({
           <Text style={styles.actionText}>Share</Text>
         </View>
       </View>
-      {reactionErrorMessage && (
-        <View style={styles.reactionError}>
-          <ErrorText message={reactionErrorMessage} />
+      {actionErrorMessage && (
+        <View style={styles.actionError}>
+          <ErrorText message={actionErrorMessage} />
         </View>
       )}
     </View>
@@ -197,10 +225,12 @@ export default function PostCard({
 
 const styles = StyleSheet.create({
   card: { paddingTop: 18, backgroundColor: COLORS.white },
+  cardDeleting: { opacity: 0.4 },
   header: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 20,
+    zIndex: 10,
   },
   headerText: { flex: 1, marginLeft: 12 },
   username: {
@@ -249,7 +279,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   actionPressed: { backgroundColor: COLORS.inputBackground },
-  reactionError: { paddingHorizontal: 20, paddingBottom: 12 },
+  actionError: { paddingHorizontal: 20, paddingBottom: 12 },
   actionIcon: { width: 18, height: 18, marginRight: 7 },
   actionText: {
     fontFamily: FONTS.semiBold,

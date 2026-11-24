@@ -22,10 +22,12 @@ async function fetchPageWithMyReactions(afterSnapshot, uid) {
   };
 }
 
-// Takes the logged-in user's ID (or null). Loads the first page when it starts. Returns the posts loaded so far, the
-// loading states, an error message (or null), and three functions: loadMore
-// (next page, at the end of the list), refresh (pull to refresh, starts
-// again from the newest post) and retry (after an error on the first page).
+// Takes the logged-in user's ID (or null). Loads the first page when it
+// starts. Returns the posts loaded so far, the loading states, an error
+// message (or null), and four functions: loadMore (next page, at the end of
+// the list), refresh (pull to refresh, starts again from the newest post),
+// retry (after an error on the first page) and removePost (takes a deleted
+// post off the list).
 export default function usePaginatedPosts(uid) {
   const [posts, setPosts] = useState([]);
   const [hasMore, setHasMore] = useState(true);
@@ -85,6 +87,11 @@ export default function usePaginatedPosts(uid) {
     setIsRefreshing(false);
   }, [loadFirstPage]);
 
+  // Takes a deleted post off the list.
+  const removePost = useCallback((postId) => {
+    setPosts((currentPosts) => currentPosts.filter((post) => post.id !== postId));
+  }, []);
+
   // Tries the first page again after an error, with the full-screen spinner.
   const retry = useCallback(async () => {
     setIsLoading(true);
@@ -102,5 +109,6 @@ export default function usePaginatedPosts(uid) {
     loadMore,
     refresh,
     retry,
+    removePost,
   };
 }

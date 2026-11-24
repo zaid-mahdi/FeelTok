@@ -32,6 +32,7 @@ export default function ForYouFeed() {
     loadMore,
     refresh,
     retry,
+    removePost,
   } = usePaginatedPosts(user?.uid ?? null);
 
   // Home stays open behind other pages, so it refreshes each time it comes
@@ -61,7 +62,9 @@ export default function ForYouFeed() {
     <FlatList
       data={posts}
       keyExtractor={(post) => post.id}
-      renderItem={({ item }) => <PostCard post={item} />}
+      renderItem={({ item }) => (
+        <PostCard post={item} onDeleted={removePost} />
+      )}
       ItemSeparatorComponent={() => <View style={styles.separator} />}
       onEndReached={loadMore}
       onEndReachedThreshold={0.5}

@@ -190,35 +190,55 @@ service cloud.firestore {
         && isPostCommentCountChanged(postId, 1);
     }
 
+    // True if the post is being deleted by its author in this same step, or
+    // is already gone. Then its comments and reactions (also other people's)
+    // can be deleted with it, so nothing is left behind.
+    function isPostDeletedWithIt(postId) {
+      let postPath = /databases/$(database)/documents/posts/$(postId);
+      return request.auth != null
+        && (!exists(postPath)
+          || (get(postPath).data.authorId == request.auth.uid && !existsAfter(postPath)));
+    }
+
     // Posts: anyone, even logged out, can read them (the For You feed). A
     // logged-in user can create a valid post as themselves. Any logged-in user
     // who isn't blocked can change the reaction counts, only together with
     // their own reaction (users can react to their own posts too), and the
-    // comment count by 1, when they add or delete their own comment.
+    // comment count by 1, when they add or delete their own comment. Authors
+    // can delete their own posts, together with the post's photo. Posts can't
+    // be edited.
     match /posts/{postId} {
       allow get, list: if true;
       allow create: if request.auth != null && isValidNewPost(postId);
       allow update: if request.auth != null
         && isNotBlocked()
         && (isValidReactionCountUpdate(postId) || isValidCommentCountUpdate());
+      allow delete: if request.auth != null
+        && resource.data.authorId == request.auth.uid
+        && isNotBlocked()
+        && (resource.data.imageId == null
+          || !existsAfter(/databases/$(database)/documents/postImages/$(postId)));
 
       // Comments: anyone can read them. A logged-in user who isn't blocked can
       // add comments as themselves and delete only their own (deleting other
-      // people's comments is for admins, Task 17). Comments can't be edited.
+      // people's comments is for admins, Task 17), except when the whole post
+      // is deleted. Comments can't be edited.
       match /comments/{commentId} {
         allow get, list: if true;
         allow create: if request.auth != null
           && isNotBlocked()
           && isValidNewComment(postId);
-        allow delete: if request.auth != null
-          && resource.data.authorId == request.auth.uid
-          && isNotBlocked()
-          && isPostCommentCountChanged(postId, -1);
+        allow delete: if isPostDeletedWithIt(postId)
+          || (request.auth != null
+            && resource.data.authorId == request.auth.uid
+            && isNotBlocked()
+            && isPostCommentCountChanged(postId, -1));
       }
 
       // Reactions: one per user per post, saved under the user's ID. Anyone
       // can read them. Users can set, switch or remove only their own, to one
-      // of the 6 moods, together with the post's count.
+      // of the 6 moods, together with the post's count. All of a post's
+      // reactions are deleted with the post.
       match /reactions/{uid} {
         allow get, list: if true;
         allow create, update: if isCurrentUser(uid)
@@ -226,17 +246,22 @@ service cloud.firestore {
           && hasExactly(request.resource.data, ['reaction'])
           && isMood(request.resource.data.reaction)
           && isPostCountChanged(postId, request.resource.data.reaction, 1);
-        allow delete: if isCurrentUser(uid)
-          && isNotBlocked()
-          && isPostCountChanged(postId, resource.data.reaction, -1);
+        allow delete: if isPostDeletedWithIt(postId)
+          || (isCurrentUser(uid)
+            && isNotBlocked()
+            && isPostCountChanged(postId, resource.data.reaction, -1));
       }
     }
 
     // Post photos: anyone can read one photo (not list them all). Created only
     // together with their post (same ID), by the post's author, as base64 text
     // of up to 900,000 characters, so it always fits in a Firestore document.
+    // Deleted only by their owner, together with their post.
     match /postImages/{imageId} {
       allow get: if true;
+      allow delete: if request.auth != null
+        && resource.data.ownerId == request.auth.uid
+        && !existsAfter(/databases/$(database)/documents/posts/$(imageId));
       allow create: if request.auth != null
         && hasExactly(request.resource.data, ['ownerId', 'data', 'createdAt'])
         && request.resource.data.ownerId == request.auth.uid
