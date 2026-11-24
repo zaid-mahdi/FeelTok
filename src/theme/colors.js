@@ -25,4 +25,26 @@ export const COLORS = {
   panelBorder: "#3E376A", // tag outlines on Midnight Ink
   adminBadge: "#2A2650", // the ADMIN badge
   adminBadgeText: "#B9A6FF",
+
+  // Light tints behind the post types, measured from the mockups
+  lightPink: "#FFF1F6",
+  lightPurple: "#F0EAFF",
+
+  // The dashed outline of "Add a photo" on the New post page
+  photoBorder: "rgba(108, 44, 255, 0.35)",
+
+  // The 6 user moods: the ring around an avatar, and the light tint behind
+  // the mood's name
+  moodHappyRing: "#FFC83D",
+  moodHappyTint: "#FFF6D9",
+  moodSadRing: "#7FB2FF",
+  moodSadTint: "#EAF2FF",
+  moodAngryRing: "#FF8A5B",
+  moodAngryTint: "#FFEDE5",
+  moodLoveRing: "#FF7AA8",
+  moodLoveTint: "#FFEAF2",
+  moodSurprisedRing: "#B39BFF",
+  moodSurprisedTint: "#F0EAFF",
+  moodFunnyRing: "#5FD3A5",
+  moodFunnyTint: "#E3F8EF",
 };

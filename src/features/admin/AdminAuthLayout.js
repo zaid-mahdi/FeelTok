@@ -8,7 +8,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import { POST_REACTIONS } from "../../constants/reactions";
+import { POST_TYPES } from "../../constants/postTypes";
 import { COLORS } from "../../theme/colors";
 import { FONTS } from "../../theme/fonts";
 
@@ -33,7 +33,7 @@ export default function AdminAuthLayout({ children }) {
 }
 
 // Shows the white logo with the ADMIN badge at the top, and the console's
-// title, description and the Hi Six reaction tags at the bottom.
+// title, description and the Hi Six post type tags at the bottom.
 function BrandPanel() {
   return (
     <View style={styles.panel}>
@@ -56,9 +56,9 @@ function BrandPanel() {
           place to share.
         </Text>
         <View style={styles.tags}>
-          {POST_REACTIONS.map((reaction) => (
-            <View key={reaction.key} style={styles.tag}>
-              <Text style={styles.tagText}>{reaction.label}</Text>
+          {POST_TYPES.map((postType) => (
+            <View key={postType.key} style={styles.tag}>
+              <Text style={styles.tagText}>{postType.label}</Text>
             </View>
           ))}
         </View>

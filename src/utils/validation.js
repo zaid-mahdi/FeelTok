@@ -48,3 +48,29 @@ export function validateSignUp(email, username, password, confirmedPassword) {
   if (password !== confirmedPassword) return "The passwords don't match.";
   return null;
 }
+
+// Posts: the app counts words, and the security rules also cap the number of
+// characters, because rules can't count words.
+export const MAX_POST_WORDS = 500;
+export const MAX_POST_CHARACTERS = 5000;
+
+// Takes some text and returns how many words it has.
+export function countWords(text) {
+  const words = text.trim().split(/\s+/);
+  return words[0] === "" ? 0 : words.length;
+}
+
+// Takes the post's text and type and returns what is still missing or wrong,
+// as a short message, or null if the post can be posted.
+export function validatePost(text, postType) {
+  const hasText = text.trim().length > 0;
+  if (!postType && !hasText) {
+    return "Pick a post type and write something to post";
+  }
+  if (!postType) return "Pick a post type to post";
+  if (!hasText) return "Write something to post";
+  if (countWords(text) > MAX_POST_WORDS) {
+    return `Your post is over ${MAX_POST_WORDS} words`;
+  }
+  return null;
+}

@@ -6,12 +6,13 @@ import { FONTS } from "../theme/fonts";
 // Shows a purple button that gets darker when pressed, or when the mouse is
 // over it on the web. Takes its text and a function to call when pressed.
 // While isLoading is true it shows a spinner, and while isDisabled is true it
-// is grey. In both cases it can't be pressed.
+// is grey. In both cases it can't be pressed. style changes its outer spacing.
 export default function PrimaryButton({
   title,
   onPress,
   isLoading = false,
   isDisabled = false,
+  style,
 }) {
   return (
     <Pressable
@@ -25,6 +26,7 @@ export default function PrimaryButton({
         (pressed || hovered) && styles.buttonPressed,
         isLoading && styles.buttonLoading,
         isDisabled && styles.buttonDisabled,
+        style,
       ]}
     >
       {isLoading ? (

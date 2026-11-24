@@ -1,6 +1,6 @@
 # FeelTok
 
-A text-first social app where emotions are central. Each user shows how they feel with one of 6 moods (happy 😊, sad 😢, angry 😠, love ❤️, surprised 😮, funny 😂), and people react to posts with the 6 "Hi Six" reactions: Love, Gratitude, Apology, Appreciation, Mindfulness and Thank you.
+A text-first social app where emotions are central. Each user shows how they feel with one of 6 moods (happy 😊, sad 😢, angry 😠, love ❤️, surprised 😮, funny 😂). Every post has one of the 6 "Hi Six" post types (Love, Gratitude, Apology, Appreciation, Mindfulness and Thank you), and people will react to posts with the moods.
 It's a group project for SWE6301 Agile Programming. See `documentation.md` for what is built so far.
 
 **Stack:** React Native + Expo (Expo Router, JavaScript) and Firebase (Auth, Firestore).
@@ -34,12 +34,12 @@ The code is organised by feature: everything about login is in one folder, and l
 | Folder or file | Purpose |
 |---|---|
 | `app/` | Pages, one file per route (Expo Router) |
-| `src/features/` | One folder per feature, with its components, hooks and Firebase calls (`auth/`, `profile/` and `admin/` so far) |
+| `src/features/` | One folder per feature, with its components, hooks and Firebase calls (`auth/`, `profile/`, `posts/` and `admin/` so far) |
 | `src/components/` | UI pieces shared by many pages |
 | `src/lib/firebase.js` | Firebase setup |
-| `src/constants/` | Fixed lists: the 6 user moods and the 6 post reactions |
+| `src/constants/` | Fixed lists: the 6 user moods and the 6 post types |
 | `src/theme/` | Colours and fonts |
-| `src/utils/` | Error messages and text checks |
+| `src/utils/` | Error messages, text checks and photo helpers |
 | `assets/` | Images, icons and the logo |
 | `__tests__/` | Empty, for tests |
 | `firestore.rules` | Database security rules, pasted into the Firebase console |

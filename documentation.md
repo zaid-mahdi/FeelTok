@@ -6,7 +6,7 @@ This file describes the project as it is built today. It is updated after every 
 
 FeelTok is a small social app where emotions are central. Users will use it as a mobile app, and admins will use a dashboard in the browser. Both come from the same project.
 
-So far, sign up, login and forgot password work and have their final design. Roles work: the app works on phones and in the browser, and admins sign in at `/admin` in the browser. All other pages are placeholders. The team's designer is still working on those pages.
+So far, sign up, login and forgot password work and have their final design. Roles work: the app works on phones and in the browser, and admins sign in at `/admin` in the browser. Users can create posts on the New post page. All other pages are placeholders. The team's designer is still working on those pages.
 
 **Tech stack:** Expo (React Native) with Expo Router, JavaScript only, Firebase Authentication (email and password) and Cloud Firestore. We use the free Firebase plan.
 
@@ -23,16 +23,17 @@ So far, sign up, login and forgot password work and have their final design. Rol
 | Folder or file | What it is for |
 |---|---|
 | `app/` | The screens. Each file is one page. |
-| `app/(tabs)/` | The 4 tabs: Home, Create, Friends, Profile |
+| `app/(tabs)/` | The 5 tabs: Home, Create (opens the New post page), Mood, Friends, Profile |
 | `app/admin/` | The admin area: admin sign-in and dashboard (web only) |
 | `src/lib/` | Firebase setup |
 | `src/features/auth/` | Everything about sign up, login and passwords |
-| `src/features/profile/` | Usernames and user profiles |
+| `src/features/profile/` | Usernames, user profiles and the avatar |
+| `src/features/posts/` | Creating posts: the New post page and its parts |
 | `src/features/admin/` | The admin sign-in page |
 | `src/components/` | Small pieces shared by many screens |
-| `src/constants/` | Fixed lists: the 6 user moods and the 6 post reactions (two separate lists) |
+| `src/constants/` | Fixed lists: the 6 user moods and the 6 post types (two separate lists) |
 | `src/theme/` | Colours and fonts |
-| `src/utils/` | Helpers: error messages, text checks and the web/mobile check |
+| `src/utils/` | Helpers: error messages, text checks, photos and the web/mobile check |
 | `__tests__/` | Empty, for tests |
 | `assets/` | Images, icons and the logo |
 | `firestore.rules` | The database security rules |
@@ -40,14 +41,18 @@ So far, sign up, login and forgot password work and have their final design. Rol
 
 ## Data model
 
-User accounts (email and password) are in Firebase Authentication. Firestore has 2 collections:
+User accounts (email and password) are in Firebase Authentication. Firestore has 4 collections:
 
 | Collection | Document ID | Fields |
 |---|---|---|
 | `users` | The user's ID | `username`, `displayName` (same as the username at sign up), `bio` (empty), `hasPhoto` (false), `mood` (null), `moodUpdatedAt` (null), `role` ("user"), `banned` (false), `createdAt` |
 | `usernames` | The username | `uid`: the ID of the user who has it |
+| `posts` | A new ID | `authorId`, `authorUsername`, `authorHasPhoto`, `authorMood` (one of the 6 moods or null), `postType` (one of the 6 post types), `text`, `imageId` (the post's own ID if it has a photo, or null), `reactionCounts` (0 for each of the 6 moods), `commentCount` (0), `createdAt` |
+| `postImages` | The post's ID | `ownerId`, `data` (the photo as base64 text), `createdAt` |
 
 The username is the document ID, so two users can never have the same one. The email is not saved in Firestore.
+
+There are two separate lists of six: the **moods** (happy, sad, angry, love, surprised, funny) for how a user feels, a post's mood and, later, reactions to posts; and the **post types** (love, gratitude, apology, appreciation, mindfulness, thank_you) for what kind of post it is.
 
 ## Security rules summary
 
@@ -57,6 +62,9 @@ The username is the document ID, so two users can never have the same one. The e
 - Anyone can read one user's profile, but nobody can list all profiles.
 - Users can edit only their own display name, bio, photo flag and mood (one of the 6 user moods, or none). They can never change their own role, blocked status, username or join date, so nobody can make themselves an admin.
 - Nobody can delete profiles from the app yet, and nobody can change or delete usernames.
+- A logged-in user who is not blocked can create a post as themselves, with their real username, a valid type and mood, text that isn't empty (up to 5,000 characters) and all counts at 0.
+- A post photo can only be created together with its post, by its author, and must be small enough for one document.
+- Posts and photos can't be read, edited or deleted yet. Later tasks open these.
 - Everything else is locked. Each task opens only what it needs.
 
 ---
@@ -273,3 +281,71 @@ The username is the document ID, so two users can never have the same one. The e
 - The white logo was made from the brand kit's rule (overlap and wordmark white on Midnight Ink). The designer should confirm it.
 - The mockup's "Keep me signed in" checkbox was left out (team decision): admins stay signed in, like everyone else.
 - The "not an admin" message is not in the mockup.
+
+### Task 6 — Create post
+
+**What it does:** Tapping the Create tab opens the full-screen New post page from the designer's mockup. The user picks one of the 6 post types (required), writes up to 500 words (required) and can add one photo. The post's mood starts on the user's current mood. "Change mood" changes it for this post only, or clears it with "No mood". The Post button stays grey until a type is picked and some text is written. After posting, the page closes and Home opens.
+
+**Files:**
+- `app/new-post.js`: the New post page: the header with ✕ and the form. Logged-out users go to login
+- `app/(tabs)/_layout.js`: tapping Create opens the New post page; the new Mood tab
+- `app/(tabs)/create.js`: sends anyone who opens `/create` to the New post page
+- `app/(tabs)/mood.js`: the Mood tab, a placeholder until its design is ready
+- `src/features/posts/postService.js`: saves a post, and its photo, together
+- `src/features/posts/NewPostForm.js`: the form, its checks and the bar with the Post button
+- `src/features/posts/PostAuthorMood.js`: the avatar, name, the post's mood and "Change mood"
+- `src/features/posts/PostTypePicker.js`: the 6 post types in two columns
+- `src/features/posts/PostTextField.js`: the big text box
+- `src/features/posts/PostPhotoField.js`: "Add a photo", or the photo with a remove (✕) button
+- `src/features/posts/PostFormSection.js`: a section heading with its note ("Required", the word count)
+- `src/features/profile/Avatar.js`: a round avatar with initials and a ring in the mood's colour
+- `src/components/CloseButton.js`: the round ✕ button
+- `src/components/PrimaryButton.js`: can now take extra spacing
+- `src/constants/postTypes.js`: the 6 post types with their labels, icons and colours (replaces `reactions.js`)
+- `src/constants/moods.js`: now also has each mood's ring and tint colour
+- `src/theme/colors.js`: the mood colours and the light pink and light purple tints
+- `src/utils/images.js`: picks a photo, makes it smaller and turns it into text for Firestore
+- `src/utils/validation.js`: the 500-word limit and the post checks
+- `src/utils/errors.js`: messages for photos that are too big
+- `src/features/admin/AdminAuthLayout.js`: its tags now read from the post types list
+- `assets/images/`: the 6 post type icons, and the close and photo icons
+- `firestore.rules`: who can create posts and post photos
+
+**Main functions / hooks / components:**
+- `createPost`: saves the post and its photo in one batch, so neither is saved without the other
+- `pickPhoto`: opens the photo library with cropping, and refuses files over 10 MB
+- `preparePostPhoto`: makes the photo at most 800 px wide and compresses it until it fits in Firestore
+- `countWords`, `validatePost`: count the words and say what is still missing
+- `NewPostForm`, `PostAuthorMood`, `PostTypePicker`, `PostTextField`, `PostPhotoField`, `PostFormSection`: the parts of the page
+- `Avatar`: initials in a purple circle, with a ring in the colour of the user's current mood
+- `POST_TYPES`: the 6 post types
+
+**Firestore:** writes `posts` and `postImages`; reads the user's own profile through `useAuth`.
+
+**Firebase console steps:**
+- Publish the new `firestore.rules` in Firestore Database → Rules.
+- No index is needed.
+
+**How to test:**
+1. Tap Create. The New post page opens full screen, with your name and current mood at the top.
+2. The Post button is grey, and the bar says "Pick a post type and write something to post".
+3. Pick a type and write some text. The word count goes up and Post turns purple.
+4. Type only spaces. Post stays grey. Paste more than 500 words: the count turns red and Post stays grey.
+5. Tap "Change mood", pick another mood. Only the post's mood changes; your avatar ring stays the same.
+6. Tap "Add a photo", pick and crop a photo. A preview appears. Tap ✕ on it to remove it, then add it again.
+7. Tap Post. The page closes and Home opens. In the Firebase console, check the new post in `posts` and its photo in `postImages` (same ID).
+8. Post again without a photo and with "No mood". The post has `imageId` null and `authorMood` null.
+9. Tap ✕ at the top. The page closes without posting.
+
+**Notes / limits:**
+- The team changed the plan: Love, Gratitude, Apology, Appreciation, Mindfulness and Thank you are now **post types** (one per post, required). People will react to posts with the **6 moods** (Task 8). Each new post starts with 0 reactions for each mood.
+- Posts can't be read yet. The feed comes in Task 7.
+- Team decisions: users can react to their own posts (Task 8), and the Mood tab is built in Task 11.
+- A photo uses its post's ID as its own ID. The rules only accept a photo that is created together with its post, by the same user.
+- The rules can't count words, so they limit the text to 5,000 characters. The app limits it to 500 words.
+- Photos are saved as JPEG, at most 800 px wide and under 900,000 characters of text, so they always fit in one Firestore document.
+- Avatars show initials until profile photos are added (Task 11).
+- The mockup's text box shows "[object Object]" (a mistake in the design file), so the app uses "What's on your mind?" until the designer gives the real text.
+- The mood list that opens from "Change mood", the selected post type look and the photo preview are not in the mockup.
+- The Mood tab is a placeholder. Changing your current mood comes later.
+- Accounts made only in the Firebase console have no profile, so they can't post.

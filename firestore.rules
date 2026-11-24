@@ -14,11 +14,23 @@ service cloud.firestore {
       return username is string && username.matches('^[a-z0-9_]{3,20}$');
     }
 
-    // True if the mood is one of the 6 user moods, or no mood. These are the
-    // user moods only, never the post reactions (keep in sync with moods.js).
+    // True if the mood is one of the 6 user moods, or no mood (keep in sync
+    // with moods.js).
     function isValidMood(mood) {
       return mood == null
         || mood in ['happy', 'sad', 'angry', 'love', 'surprised', 'funny'];
+    }
+
+    // True if the post type is one of the 6 post types (keep in sync with
+    // postTypes.js). Post types are never moods.
+    function isValidPostType(postType) {
+      return postType in ['love', 'gratitude', 'apology', 'appreciation',
+        'mindfulness', 'thank_you'];
+    }
+
+    // True if the data has exactly these fields, no more and no fewer.
+    function hasExactly(data, fields) {
+      return data.keys().hasOnly(fields) && data.keys().hasAll(fields);
     }
 
     // True if the profile has exactly the fields and values of a new user, so
@@ -70,6 +82,55 @@ service cloud.firestore {
         && isNewProfile(request.resource.data)
         && getAfter(/databases/$(database)/documents/usernames/$(request.resource.data.username)).data.uid == uid;
       allow update: if isCurrentUser(uid) && isValidOwnProfileUpdate();
+    }
+
+    // True if the new post is valid: written by the logged-in user, who is not
+    // blocked, with their real username and photo flag, a valid mood and type,
+    // text of up to 5,000 characters that isn't only spaces, and all counts at
+    // 0. A post with a photo must create the photo in the same step, with the
+    // post's ID as the photo's ID.
+    function isValidNewPost(postId) {
+      let post = request.resource.data;
+      let author = get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+      return hasExactly(post, ['authorId', 'authorUsername', 'authorHasPhoto',
+          'authorMood', 'postType', 'text', 'imageId', 'reactionCounts',
+          'commentCount', 'createdAt'])
+        && post.authorId == request.auth.uid
+        && author.banned == false
+        && post.authorUsername == author.username
+        && post.authorHasPhoto == author.hasPhoto
+        && isValidMood(post.authorMood)
+        && isValidPostType(post.postType)
+        && post.text is string
+        && post.text.size() <= 5000
+        && post.text.matches('(?s).*\\S.*')
+        && post.reactionCounts == {'happy': 0, 'sad': 0, 'angry': 0,
+          'love': 0, 'surprised': 0, 'funny': 0}
+        && post.commentCount == 0
+        && post.createdAt == request.time
+        && (post.imageId == null
+          || (post.imageId == postId
+            && getAfter(/databases/$(database)/documents/postImages/$(postId)).data.ownerId == request.auth.uid));
+    }
+
+    // Posts: a logged-in user can create a valid post as themselves.
+    match /posts/{postId} {
+      allow create: if request.auth != null && isValidNewPost(postId);
+    }
+
+    // Post photos: created only together with their post (same ID), by the
+    // post's author, as base64 text of up to 900,000 characters, so it always
+    // fits in a Firestore document.
+    match /postImages/{imageId} {
+      allow create: if request.auth != null
+        && hasExactly(request.resource.data, ['ownerId', 'data', 'createdAt'])
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.data is string
+        && request.resource.data.data.size() > 0
+        && request.resource.data.data.size() <= 900000
+        && request.resource.data.createdAt == request.time
+        && getAfter(/databases/$(database)/documents/posts/$(imageId)).data.authorId == request.auth.uid
+        && getAfter(/databases/$(database)/documents/posts/$(imageId)).data.imageId == imageId;
     }
   }
 }
