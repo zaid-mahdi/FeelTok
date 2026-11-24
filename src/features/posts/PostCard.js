@@ -1,9 +1,10 @@
 // One post in the feed, from the For You feed mockup: the author, the post
-// type, the text, the photo, the counts, and the React and Share buttons.
+// type, the text, the photo, the counts, and the React, Comment and Share
+// buttons.
 import { Image } from "expo-image";
 import { router } from "expo-router";
 import { useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import ErrorText from "../../components/ErrorText";
 import { findMood } from "../../constants/moods";
 import { COLORS } from "../../theme/colors";
@@ -32,13 +33,21 @@ function isLongText(text) {
 }
 
 // Takes a post from Firestore (with its id, and myReaction: the logged-in
-// user's reaction or null) and shows it as a card.
-export default function PostCard({ post }) {
+// user's reaction or null) and shows it as a card. Optional: isFullText shows
+// the whole text (the post page), commentCount replaces the post's count, and
+// onCommentPress replaces opening the post page (the post page uses it to put
+// the cursor in the comment box).
+export default function PostCard({
+  post,
+  isFullText = false,
+  commentCount = post.commentCount,
+  onCommentPress,
+}) {
   const { user } = useAuth();
   const [isExpanded, setIsExpanded] = useState(false);
   const [reactionErrorMessage, setReactionErrorMessage] = useState(null);
   const mood = findMood(post.authorMood);
-  const isShortened = !isExpanded && isLongText(post.text);
+  const isShortened = !isFullText && !isExpanded && isLongText(post.text);
 
   // The reaction and counts shown on screen. They change as soon as the user
   // taps, before Firestore answers, and start again from the post whenever
@@ -83,6 +92,16 @@ export default function PostCard({ post }) {
       setShownReaction(before);
       setReactionErrorMessage(friendlyError(error));
     }
+  }
+
+  // Opens the post page with its comments, unless the page gave its own
+  // function.
+  function handleCommentPress() {
+    if (onCommentPress) {
+      onCommentPress();
+      return;
+    }
+    router.push(`/post/${post.id}`);
   }
 
   // Logged-out users who try to react are sent to login.
@@ -131,7 +150,8 @@ export default function PostCard({ post }) {
 
       <PostStats
         reactionCounts={shown.reactionCounts}
-        commentCount={post.commentCount}
+        commentCount={commentCount}
+        onCommentsPress={handleCommentPress}
       />
 
       <View style={styles.actions}>
@@ -141,14 +161,29 @@ export default function PostCard({ post }) {
           canReact={Boolean(user)}
           onLoginNeeded={handleLoginNeeded}
         />
+        <Pressable
+          onPress={handleCommentPress}
+          accessibilityRole="button"
+          accessibilityLabel="Comment"
+          style={({ pressed }) => [
+            styles.action,
+            pressed && styles.actionPressed,
+          ]}
+        >
+          <Image
+            source={require("../../../assets/images/icon-comment.svg")}
+            style={styles.actionIcon}
+          />
+          <Text style={styles.actionText}>Comment</Text>
+        </Pressable>
         {/* Share is only the look from the mockup: it does nothing yet
-            (team decision). Comment comes in Task 9. */}
-        <View style={styles.share}>
+            (team decision). */}
+        <View style={styles.action}>
           <Image
             source={require("../../../assets/images/icon-share.svg")}
-            style={styles.shareIcon}
+            style={styles.actionIcon}
           />
-          <Text style={styles.shareText}>Share</Text>
+          <Text style={styles.actionText}>Share</Text>
         </View>
       </View>
       {reactionErrorMessage && (
@@ -205,15 +240,18 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
   },
-  share: {
+  action: {
     flex: 1,
+    height: 40,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    borderRadius: 10,
   },
+  actionPressed: { backgroundColor: COLORS.inputBackground },
   reactionError: { paddingHorizontal: 20, paddingBottom: 12 },
-  shareIcon: { width: 18, height: 18, marginRight: 7 },
-  shareText: {
+  actionIcon: { width: 18, height: 18, marginRight: 7 },
+  actionText: {
     fontFamily: FONTS.semiBold,
     fontSize: 14,
     lineHeight: 20,

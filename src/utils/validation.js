@@ -74,3 +74,6 @@ export function validatePost(text, postType) {
   }
   return null;
 }
+
+// Comments: up to 500 characters (the same limit is in firestore.rules).
+export const MAX_COMMENT_CHARACTERS = 500;

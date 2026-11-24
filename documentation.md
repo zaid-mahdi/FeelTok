@@ -6,7 +6,7 @@ This file describes the project as it is built today. It is updated after every 
 
 FeelTok is a small social app where emotions are central. Users will use it as a mobile app, and admins will use a dashboard in the browser. Both come from the same project.
 
-So far, sign up, login and forgot password work and have their final design. Roles work: the app works on phones and in the browser, and admins sign in at `/admin` in the browser. Users can create posts on the New post page, and everyone, even logged out, can read all posts in the For You feed on Home. Logged-in users react to posts with one of the 6 moods. All other pages are placeholders. The team's designer is still working on those pages.
+So far, sign up, login and forgot password work and have their final design. Roles work: the app works on phones and in the browser, and admins sign in at `/admin` in the browser. Users can create posts on the New post page, and everyone, even logged out, can read all posts in the For You feed on Home. Logged-in users react to posts with one of the 6 moods, and comment on the post page. All other pages are placeholders. The team's designer is still working on those pages.
 
 **Tech stack:** Expo (React Native) with Expo Router, JavaScript only, Firebase Authentication (email and password) and Cloud Firestore. We use the free Firebase plan.
 
@@ -24,17 +24,19 @@ So far, sign up, login and forgot password work and have their final design. Rol
 |---|---|
 | `app/` | The screens. Each file is one page. |
 | `app/(tabs)/` | The 5 tabs: Home, Friend List, Create (opens the New post page), Mood, Profile |
+| `app/post/` | The post page: one post with its comments |
 | `app/admin/` | The admin area: admin sign-in and dashboard (web only) |
 | `src/lib/` | Firebase setup |
 | `src/features/auth/` | Everything about sign up, login and passwords |
 | `src/features/profile/` | Usernames, user profiles and the avatar |
 | `src/features/posts/` | Posts: the New post page, the For You feed and the post card |
 | `src/features/reactions/` | Reacting to posts with a mood: the React button and its Firestore calls |
+| `src/features/comments/` | Comments: the comment box, one comment, and their Firestore calls |
 | `src/features/admin/` | The admin sign-in page |
 | `src/components/` | Small pieces shared by many screens |
 | `src/constants/` | Fixed lists: the 6 user moods and the 6 post types (two separate lists) |
 | `src/theme/` | Colours and fonts |
-| `src/utils/` | Helpers: error messages, text checks, photos, post times and the web/mobile check |
+| `src/utils/` | Helpers: error messages, text checks, photos, post times, confirm questions and the web/mobile check |
 | `__tests__/` | Empty, for tests |
 | `assets/` | Images, icons and the logo |
 | `firestore.rules` | The database security rules |
@@ -42,7 +44,7 @@ So far, sign up, login and forgot password work and have their final design. Rol
 
 ## Data model
 
-User accounts (email and password) are in Firebase Authentication. Firestore has 4 collections, and posts have a `reactions` sub-collection:
+User accounts (email and password) are in Firebase Authentication. Firestore has 4 collections, and posts have `reactions` and `comments` sub-collections:
 
 | Collection | Document ID | Fields |
 |---|---|---|
@@ -50,6 +52,7 @@ User accounts (email and password) are in Firebase Authentication. Firestore has
 | `usernames` | The username | `uid`: the ID of the user who has it |
 | `posts` | A new ID | `authorId`, `authorUsername`, `authorHasPhoto`, `authorMood` (one of the 6 moods or null), `postType` (one of the 6 post types), `text`, `imageId` (the post's own ID if it has a photo, or null), `reactionCounts` (0 for each of the 6 moods), `commentCount` (0), `createdAt` |
 | `posts/{postId}/reactions` | The ID of the user who reacted | `reaction`: one of the 6 moods. One per user per post |
+| `posts/{postId}/comments` | A new ID | `authorId`, `authorUsername`, `text` (up to 500 characters), `createdAt`. The commenter's mood is not saved: their avatar reads their current mood from their profile |
 | `postImages` | The post's ID | `ownerId`, `data` (the photo as base64 text), `createdAt` |
 
 The username is the document ID, so two users can never have the same one. The email is not saved in Firestore.
@@ -69,6 +72,8 @@ There are two separate lists of six: the **moods** (happy, sad, angry, love, sur
 - Anyone, even logged out, can read posts and list them (the For You feed), and read one post photo at a time. Nobody can list all photos.
 - Anyone can read reactions. A logged-in user who is not blocked can set, switch or remove only their own reaction (one of the 6 moods), on any post including their own.
 - The only change anyone can make to a post is its reaction counts, and only by exactly what their own reaction adds or removes in the same step.
+- Anyone can read comments. A logged-in user who is not blocked can add comments as themselves (up to 500 characters, not only spaces) and delete only their own. Deleting other people's comments is for admins (Task 17). Comments can't be edited.
+- Adding or deleting a comment must change the post's comment count by exactly 1 in the same step.
 - Posts and photos can't be edited or deleted yet. Later tasks open deleting.
 - Everything else is locked. Each task opens only what it needs.
 
@@ -458,3 +463,53 @@ There are two separate lists of six: the **moods** (happy, sad, angry, love, sur
 - The Comment button stays hidden until Task 9. Share is still only the look.
 - Blocked users can't react or remove their reaction (blocking comes in Task 17).
 - The row of moods closes when you pick one or tap React again.
+
+### Task 9 — Comments
+
+**What it does:** Tapping Comment or "N comments" on a post opens the post page: the post, the comment box ("Say something kind..." with a round send button, from the designer's mockup) and the comments, oldest first. Each comment shows the commenter's avatar with their current mood, their username, the time and the text. Logged-in users can add comments and delete their own (a small "Delete" link, which asks first). Logged-out users can read comments and see "Log in to comment".
+
+**Files:**
+- `app/post/[id].js`: the post page: the header with a back button, the post, the comment box and the comments
+- `src/features/comments/commentService.js`: reads, adds and deletes comments, with the post's comment count
+- `src/features/comments/useComments.js`: loads the comments and the commenters' profiles, and adds or deletes comments
+- `src/features/comments/CommentInput.js`: the comment box and send button
+- `src/features/comments/CommentItem.js`: one comment, with "Delete" on your own comments
+- `src/features/posts/usePost.js`: loads one post and your reaction to it
+- `src/features/posts/PostCard.js`: the Comment button; can show the whole text on the post page
+- `src/features/posts/PostStats.js`: "N comments" opens the post page
+- `src/features/posts/postService.js`: reads one post
+- `src/features/profile/profileService.js`: reads several profiles at once (for the commenters' moods)
+- `src/utils/confirm.js`: asks "Are you sure?" on phones and in the browser
+- `src/utils/validation.js`: the 500-character comment limit
+- `assets/images/`: the comment and send icons
+- `firestore.rules`: who can read, add and delete comments
+
+**Main functions / hooks / components:**
+- `fetchComments`, `addComment`, `deleteComment`: the comment calls; adding and deleting also change the post's count in the same batch
+- `useComments`, `usePost`: the post page's data
+- `fetchPost`, `fetchProfiles`: read one post, and several profiles
+- `CommentInput`, `CommentItem`: the parts of the page
+- `confirmAction`: the "Delete this comment?" question
+
+**Firestore:** reads `posts`, `posts/{postId}/comments` (oldest first) and `users` (the commenters' moods); writes `posts/{postId}/comments` and the post's `commentCount`.
+
+**Firebase console steps:**
+- Publish the new `firestore.rules` in Firestore Database → Rules.
+- No index is needed: one post's comments are sorted by a single field.
+
+**How to test:**
+1. Logged out, tap Comment on a post. The post page opens with its comments and "Log in to comment".
+2. Log in. Tap "N comments" on a post. The post page opens.
+3. Tap Comment on the post page. The cursor goes into the comment box. The send button is faded until you type.
+4. Write a comment and send it. It shows at the bottom, the box empties and the count goes up by 1.
+5. Your comment has "Delete"; other people's don't. Tap Delete, confirm. It's gone and the count goes down by 1.
+6. A commenter's avatar shows their current mood (change it in the console and reopen the page).
+7. A post with no comments says "No comments yet".
+8. Go back. The feed shows the new comment count.
+
+**Notes / limits:**
+- Team decisions: comments are on a separate post page, and users can only delete their own comments. The post's author can't delete other people's comments; that is for admins in Task 17.
+- Comments can't be edited, and there are no replies (out of scope).
+- Comments are up to 500 characters. All comments of a post load at once (no pages).
+- The rules can check that the comment count changes by exactly 1, but not which comment it belongs to, so the count could drift only through someone writing their own requests outside the app.
+- The "Delete" link and the "Log in to comment" text are not in the mockup.

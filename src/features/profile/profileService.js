@@ -33,6 +33,22 @@ export function subscribeToProfile(uid, onProfile, onError) {
   );
 }
 
+// Takes a list of user IDs and returns their profiles: an object of user ID →
+// profile. Users without a profile are left out.
+export async function fetchProfiles(uids) {
+  const uniqueUids = [...new Set(uids)];
+  const snapshots = await Promise.all(
+    uniqueUids.map((uid) => getDoc(doc(db, "users", uid))),
+  );
+  const profiles = {};
+  snapshots.forEach((snapshot, index) => {
+    if (snapshot.exists()) {
+      profiles[uniqueUids[index]] = { uid: uniqueUids[index], ...snapshot.data() };
+    }
+  });
+  return profiles;
+}
+
 // Takes a username and returns true if nobody uses it yet.
 export async function isUsernameFree(username) {
   const usernameSnapshot = await getDoc(doc(db, "usernames", username));

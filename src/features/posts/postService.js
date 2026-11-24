@@ -75,6 +75,14 @@ export async function fetchPostsPage(afterSnapshot) {
   };
 }
 
+// Takes a post ID and returns the post (with its id), or null if it doesn't
+// exist.
+export async function fetchPost(postId) {
+  const postSnapshot = await getDoc(doc(db, "posts", postId));
+  if (!postSnapshot.exists()) return null;
+  return { id: postSnapshot.id, ...postSnapshot.data() };
+}
+
 // Takes a post ID and returns its photo as a data URI that an Image can show,
 // or null if the photo doesn't exist.
 export async function fetchPostPhoto(postId) {

@@ -157,16 +157,64 @@ service cloud.firestore {
       return getAfter(postPath).data.reactionCounts[mood] == get(postPath).data.reactionCounts[mood] + change;
     }
 
+    // True if a change to a post only adds or takes 1 from its comment count.
+    // The comment rules below make adding or deleting a comment change it too.
+    function isValidCommentCountUpdate() {
+      let newCount = request.resource.data.commentCount;
+      let oldCount = resource.data.commentCount;
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['commentCount'])
+        && (newCount == oldCount + 1 || newCount == oldCount - 1)
+        && newCount >= 0;
+    }
+
+    // True if the post's comment count changes by `change` (1 or -1) in the
+    // same step, so a comment can't be added or deleted without its count.
+    function isPostCommentCountChanged(postId, change) {
+      let postPath = /databases/$(database)/documents/posts/$(postId);
+      return getAfter(postPath).data.commentCount == get(postPath).data.commentCount + change;
+    }
+
+    // True if the new comment is valid: written by the logged-in user with
+    // their real username, text of up to 500 characters that isn't only
+    // spaces, the server's time, and the post's count goes up by 1.
+    function isValidNewComment(postId) {
+      let comment = request.resource.data;
+      let author = get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+      return hasExactly(comment, ['authorId', 'authorUsername', 'text', 'createdAt'])
+        && comment.authorId == request.auth.uid
+        && comment.authorUsername == author.username
+        && comment.text is string
+        && comment.text.size() <= 500
+        && comment.text.matches('(?s).*\\S.*')
+        && comment.createdAt == request.time
+        && isPostCommentCountChanged(postId, 1);
+    }
+
     // Posts: anyone, even logged out, can read them (the For You feed). A
     // logged-in user can create a valid post as themselves. Any logged-in user
     // who isn't blocked can change the reaction counts, only together with
-    // their own reaction (users can react to their own posts too).
+    // their own reaction (users can react to their own posts too), and the
+    // comment count by 1, when they add or delete their own comment.
     match /posts/{postId} {
       allow get, list: if true;
       allow create: if request.auth != null && isValidNewPost(postId);
       allow update: if request.auth != null
         && isNotBlocked()
-        && isValidReactionCountUpdate(postId);
+        && (isValidReactionCountUpdate(postId) || isValidCommentCountUpdate());
+
+      // Comments: anyone can read them. A logged-in user who isn't blocked can
+      // add comments as themselves and delete only their own (deleting other
+      // people's comments is for admins, Task 17). Comments can't be edited.
+      match /comments/{commentId} {
+        allow get, list: if true;
+        allow create: if request.auth != null
+          && isNotBlocked()
+          && isValidNewComment(postId);
+        allow delete: if request.auth != null
+          && resource.data.authorId == request.auth.uid
+          && isNotBlocked()
+          && isPostCommentCountChanged(postId, -1);
+      }
 
       // Reactions: one per user per post, saved under the user's ID. Anyone
       // can read them. Users can set, switch or remove only their own, to one

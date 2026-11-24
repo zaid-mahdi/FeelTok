@@ -34,7 +34,7 @@ The code is organised by feature: everything about login is in one folder, and l
 | Folder or file | Purpose |
 |---|---|
 | `app/` | Pages, one file per route (Expo Router) |
-| `src/features/` | One folder per feature, with its components, hooks and Firebase calls (`auth/`, `profile/`, `posts/`, `reactions/` and `admin/` so far) |
+| `src/features/` | One folder per feature, with its components, hooks and Firebase calls (`auth/`, `profile/`, `posts/`, `reactions/`, `comments/` and `admin/` so far) |
 | `src/components/` | UI pieces shared by many pages |
 | `src/lib/firebase.js` | Firebase setup |
 | `src/constants/` | Fixed lists: the 6 user moods and the 6 post types |

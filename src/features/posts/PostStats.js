@@ -1,6 +1,6 @@
 // The counts under a post: the most used reactions (moods) with the total,
 // and the number of comments.
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { USER_MOODS } from "../../constants/moods";
 import { COLORS } from "../../theme/colors";
 import { FONTS } from "../../theme/fonts";
@@ -20,9 +20,14 @@ function summariseReactions(reactionCounts = {}) {
   return { total, topMoods: used.slice(0, SHOWN_REACTIONS).map((r) => r.mood) };
 }
 
-// Takes the reaction counts and the comment count, and shows the top
-// reaction emojis with the total on the left, and "N comments" on the right.
-export default function PostStats({ reactionCounts, commentCount = 0 }) {
+// Takes the reaction counts, the comment count and a function for tapping
+// "N comments". Shows the top reaction emojis with the total on the left, and
+// "N comments" on the right.
+export default function PostStats({
+  reactionCounts,
+  commentCount = 0,
+  onCommentsPress,
+}) {
   const { total, topMoods } = summariseReactions(reactionCounts);
 
   return (
@@ -42,9 +47,11 @@ export default function PostStats({ reactionCounts, commentCount = 0 }) {
         ))}
         {total > 0 && <Text style={styles.count}>{total}</Text>}
       </View>
-      <Text style={styles.count}>
-        {commentCount === 1 ? "1 comment" : `${commentCount} comments`}
-      </Text>
+      <Pressable onPress={onCommentsPress} accessibilityRole="button">
+        <Text style={styles.count}>
+          {commentCount === 1 ? "1 comment" : `${commentCount} comments`}
+        </Text>
+      </Pressable>
     </View>
   );
 }
