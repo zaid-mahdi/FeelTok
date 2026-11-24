@@ -73,13 +73,14 @@ service cloud.firestore {
     // True if a user's change to their own profile only touches the fields
     // they may edit, with valid values. role, banned, username and createdAt
     // can never be changed this way, so nobody can make themselves an admin.
+    // hasPhoto must say whether their profile photo exists after this step.
     function isValidOwnProfileUpdate() {
       let profile = request.resource.data;
       return profile.diff(resource.data).affectedKeys()
           .hasOnly(['displayName', 'bio', 'hasPhoto', 'mood', 'moodUpdatedAt'])
         && profile.displayName is string
         && profile.bio is string && profile.bio.size() <= 150
-        && profile.hasPhoto is bool
+        && profile.hasPhoto == existsAfter(/databases/$(database)/documents/profileImages/$(request.auth.uid))
         && isValidMood(profile.mood)
         && (profile.moodUpdatedAt == null || profile.moodUpdatedAt is timestamp);
     }
@@ -150,6 +151,18 @@ service cloud.firestore {
         && newCounts.funny == oldCounts.funny + countChange('funny', oldReaction, newReaction);
     }
 
+    // True if the author changes only the copies of their username and
+    // "has a photo" on their own post, to the values in their profile (after
+    // this step). Needed when they change their photo or username.
+    function isValidAuthorDetailsUpdate() {
+      let post = request.resource.data;
+      let author = getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+      return resource.data.authorId == request.auth.uid
+        && post.diff(resource.data).affectedKeys().hasOnly(['authorUsername', 'authorHasPhoto'])
+        && post.authorUsername == author.username
+        && post.authorHasPhoto == author.hasPhoto;
+    }
+
     // True if the post's count for this mood changes by `change` (1 or -1) in
     // the same step, so a reaction can't be saved without its count.
     function isPostCountChanged(postId, mood, change) {
@@ -205,14 +218,15 @@ service cloud.firestore {
     // who isn't blocked can change the reaction counts, only together with
     // their own reaction (users can react to their own posts too), and the
     // comment count by 1, when they add or delete their own comment. Authors
-    // can delete their own posts, together with the post's photo. Posts can't
-    // be edited.
+    // can update the copies of their username and photo flag, and delete their
+    // own posts, together with the post's photo. Posts can't be edited.
     match /posts/{postId} {
       allow get, list: if true;
       allow create: if request.auth != null && isValidNewPost(postId);
       allow update: if request.auth != null
-        && isNotBlocked()
-        && (isValidReactionCountUpdate(postId) || isValidCommentCountUpdate());
+        && (isValidAuthorDetailsUpdate()
+          || (isNotBlocked()
+            && (isValidReactionCountUpdate(postId) || isValidCommentCountUpdate())));
       allow delete: if request.auth != null
         && resource.data.authorId == request.auth.uid
         && isNotBlocked()
@@ -251,6 +265,21 @@ service cloud.firestore {
             && isNotBlocked()
             && isPostCountChanged(postId, resource.data.reaction, -1));
       }
+    }
+
+    // Profile photos: anyone can read one photo (not list them all). Users
+    // save only their own, under their user ID, as base64 text of up to
+    // 300,000 characters, together with hasPhoto = true on their profile. A
+    // new photo replaces the old one.
+    match /profileImages/{uid} {
+      allow get: if true;
+      allow create, update: if isCurrentUser(uid)
+        && hasExactly(request.resource.data, ['data', 'updatedAt'])
+        && request.resource.data.data is string
+        && request.resource.data.data.size() > 0
+        && request.resource.data.data.size() <= 300000
+        && request.resource.data.updatedAt == request.time
+        && getAfter(/databases/$(database)/documents/users/$(uid)).data.hasPhoto == true;
     }
 
     // Post photos: anyone can read one photo (not list them all). Created only

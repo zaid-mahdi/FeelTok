@@ -50,7 +50,7 @@ export default function TabsLayout() {
       />
       <Tabs.Screen
         name="profile"
-        options={{ title: "Profile" }}
+        options={{ title: "Profile", headerShown: false }}
         listeners={{ tabPress: handleLoginOnlyTabPress }}
       />
     </Tabs>

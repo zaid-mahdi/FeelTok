@@ -1,9 +1,11 @@
-// A user's round avatar with a ring in the colour of their mood, and an
-// optional emoji badge of that mood.
+// A user's round avatar (their photo, or their initials) with a ring in the
+// colour of their mood, and an optional emoji badge of that mood.
+import { Image } from "expo-image";
 import { StyleSheet, Text, View } from "react-native";
 import { findMood } from "../../constants/moods";
 import { COLORS } from "../../theme/colors";
 import { FONTS } from "../../theme/fonts";
+import useProfilePhoto from "./useProfilePhoto";
 
 const RING_WIDTH = 2;
 const RING_GAP = 2;
@@ -28,11 +30,19 @@ function getAvatarColor(name) {
   return AVATAR_COLORS[total % AVATAR_COLORS.length];
 }
 
-// Shows a coloured circle with the user's initials, inside a ring in the
-// colour of the mood (no ring when there is no mood). Takes the name, the
-// mood key (or null), the full size in pixels, and hasBadge to also show the
-// mood's emoji in a small circle. Profile photos come in Task 11.
-export default function Avatar({ name, moodKey, size = 48, hasBadge = false }) {
+// Shows the user's photo, or a coloured circle with their initials, inside a
+// ring in the colour of the mood (no ring when there is no mood). Takes the
+// name, the user's ID and hasPhoto (to show their photo), the mood key (or
+// null), the full size in pixels, and hasBadge to also show the mood's emoji.
+export default function Avatar({
+  name,
+  uid = null,
+  hasPhoto = false,
+  moodKey,
+  size = 48,
+  hasBadge = false,
+}) {
+  const photoUri = useProfilePhoto(uid, hasPhoto);
   const mood = findMood(moodKey);
   const innerSize = size - 2 * (RING_WIDTH + RING_GAP);
   const badgeSize = Math.round(size * 0.4);
@@ -63,9 +73,17 @@ export default function Avatar({ name, moodKey, size = 48, hasBadge = false }) {
           },
         ]}
       >
-        <Text style={[styles.initials, { fontSize: Math.round(size * 0.3) }]}>
-          {getInitials(name)}
-        </Text>
+        {photoUri ? (
+          <Image
+            source={{ uri: photoUri }}
+            style={{ width: innerSize, height: innerSize }}
+            contentFit="cover"
+          />
+        ) : (
+          <Text style={[styles.initials, { fontSize: Math.round(size * 0.3) }]}>
+            {getInitials(name)}
+          </Text>
+        )}
       </View>
       {hasBadge && mood && (
         <View
@@ -90,6 +108,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   circle: {
+    overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
   },

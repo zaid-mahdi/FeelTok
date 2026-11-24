@@ -1,13 +1,14 @@
-// Hook for the For You feed: loads posts page by page.
+// Hook for lists of posts (the For You feed, profiles): loads posts page by
+// page.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { friendlyError } from "../../utils/errors";
 import { fetchMyReactions } from "../reactions/reactionService";
 import { fetchPostsPage } from "./postService";
 
-// Loads one page of posts (see fetchPostsPage). When uid is given, each post
-// also gets myReaction: that user's reaction to it, or null.
-async function fetchPageWithMyReactions(afterSnapshot, uid) {
-  const page = await fetchPostsPage(afterSnapshot);
+// Loads one page of posts (see fetchPostsPage for the filters). When uid is
+// given, each post also gets myReaction: that user's reaction to it, or null.
+async function fetchPageWithMyReactions(afterSnapshot, uid, filters) {
+  const page = await fetchPostsPage(afterSnapshot, filters);
   if (!uid) return page;
   const myReactions = await fetchMyReactions(
     page.posts.map((post) => post.id),
@@ -22,13 +23,17 @@ async function fetchPageWithMyReactions(afterSnapshot, uid) {
   };
 }
 
-// Takes the logged-in user's ID (or null). Loads the first page when it
-// starts. Returns the posts loaded so far, the loading states, an error
-// message (or null), and four functions: loadMore (next page, at the end of
-// the list), refresh (pull to refresh, starts again from the newest post),
-// retry (after an error on the first page) and removePost (takes a deleted
-// post off the list).
-export default function usePaginatedPosts(uid) {
+// Takes the logged-in user's ID (or null) and optional filters: authorId
+// (only that user's posts) and postType (only that type). Loads the first
+// page when it starts and again when the filters change. Returns the posts
+// loaded so far, the loading states, an error message (or null), and four
+// functions: loadMore (next page, at the end of the list), refresh (pull to
+// refresh), retry (after an error on the first page) and removePost (takes a
+// deleted post off the list).
+export default function usePaginatedPosts(
+  uid,
+  { authorId = null, postType = null } = {},
+) {
   const [posts, setPosts] = useState([]);
   const [hasMore, setHasMore] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
@@ -40,25 +45,44 @@ export default function usePaginatedPosts(uid) {
   // twice (the list can call loadMore many times while scrolling).
   const lastSnapshotRef = useRef(null);
   const isBusyRef = useRef(false);
+  // Counts first-page loads, so an older answer (for example for the filter
+  // the user just left) never replaces a newer one.
+  const loadNumberRef = useRef(0);
 
   // Loads the first page again and replaces the list with it.
   const loadFirstPage = useCallback(async () => {
+    const loadNumber = ++loadNumberRef.current;
     isBusyRef.current = true;
     setErrorMessage(null);
     try {
-      const page = await fetchPageWithMyReactions(null, uid);
+      const page = await fetchPageWithMyReactions(null, uid, {
+        authorId,
+        postType,
+      });
+      if (loadNumber !== loadNumberRef.current) return;
       lastSnapshotRef.current = page.lastSnapshot;
       setPosts(page.posts);
       setHasMore(page.hasMore);
     } catch (error) {
-      setErrorMessage(friendlyError(error));
+      if (loadNumber === loadNumberRef.current) {
+        setErrorMessage(friendlyError(error));
+      }
     } finally {
-      isBusyRef.current = false;
+      if (loadNumber === loadNumberRef.current) isBusyRef.current = false;
     }
-  }, [uid]);
+  }, [uid, authorId, postType]);
 
+  // Starts with an empty list and the spinner, also when the filters change.
   useEffect(() => {
-    loadFirstPage().finally(() => setIsLoading(false));
+    let isCurrent = true;
+    setPosts([]);
+    setIsLoading(true);
+    loadFirstPage().finally(() => {
+      if (isCurrent) setIsLoading(false);
+    });
+    return () => {
+      isCurrent = false;
+    };
   }, [loadFirstPage]);
 
   // Adds the next page to the end of the list, if there is one.
@@ -68,7 +92,10 @@ export default function usePaginatedPosts(uid) {
     setIsLoadingMore(true);
     setErrorMessage(null);
     try {
-      const page = await fetchPageWithMyReactions(lastSnapshotRef.current, uid);
+      const page = await fetchPageWithMyReactions(lastSnapshotRef.current, uid, {
+        authorId,
+        postType,
+      });
       lastSnapshotRef.current = page.lastSnapshot;
       setPosts((currentPosts) => [...currentPosts, ...page.posts]);
       setHasMore(page.hasMore);
@@ -78,7 +105,7 @@ export default function usePaginatedPosts(uid) {
       isBusyRef.current = false;
       setIsLoadingMore(false);
     }
-  }, [hasMore, uid]);
+  }, [hasMore, uid, authorId, postType]);
 
   // Pull to refresh: loads the newest posts again.
   const refresh = useCallback(async () => {

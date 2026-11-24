@@ -30,11 +30,13 @@ function MoodOption({ mood, isSelected, onPress }) {
   );
 }
 
-// Takes the author's name, their avatar mood (their current mood), the post's
-// mood key (or null) and a function called with the new mood key (or null).
-// Changing the mood here only changes this post, not the profile.
+// Takes the author's name, ID and hasPhoto (for the avatar), their avatar
+// mood (their current mood), the post's mood key (or null) and a function
+// called with the new mood key (or null). Changing the mood here only changes this post, not the profile.
 export default function PostAuthorMood({
   name,
+  uid,
+  hasPhoto,
   profileMoodKey,
   moodKey,
   onMoodChange,
@@ -56,7 +58,13 @@ export default function PostAuthorMood({
   return (
     <View>
       <View style={styles.row}>
-        <Avatar name={name} moodKey={profileMoodKey} size={48} />
+        <Avatar
+          name={name}
+          uid={uid}
+          hasPhoto={hasPhoto}
+          moodKey={profileMoodKey}
+          size={48}
+        />
         <View style={styles.details}>
           <Text style={styles.name} numberOfLines={1}>
             {name}

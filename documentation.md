@@ -28,8 +28,8 @@ So far, sign up, login and forgot password work and have their final design. Rol
 | `app/admin/` | The admin area: admin sign-in and dashboard (web only) |
 | `src/lib/` | Firebase setup |
 | `src/features/auth/` | Everything about sign up, login and passwords |
-| `src/features/profile/` | Usernames, user profiles and the avatar |
-| `src/features/posts/` | Posts: the New post page, the For You feed and the post card |
+| `src/features/profile/` | Usernames, user profiles, the avatar (photo or initials), profile photo, bio and current mood |
+| `src/features/posts/` | Posts: the New post page, the post list (For You feed and my posts) and the post card |
 | `src/features/reactions/` | Reacting to posts with a mood: the React button and its Firestore calls |
 | `src/features/comments/` | Comments: the comment box, one comment, and their Firestore calls |
 | `src/features/admin/` | The admin sign-in page |
@@ -40,11 +40,11 @@ So far, sign up, login and forgot password work and have their final design. Rol
 | `__tests__/` | Empty, for tests |
 | `assets/` | Images, icons and the logo |
 | `firestore.rules` | The database security rules |
-| `firestore.indexes.json` | A record of database indexes (none yet) |
+| `firestore.indexes.json` | A record of database indexes (two so far: a user's posts, newest first, with or without one post type) |
 
 ## Data model
 
-User accounts (email and password) are in Firebase Authentication. Firestore has 4 collections, and posts have `reactions` and `comments` sub-collections:
+User accounts (email and password) are in Firebase Authentication. Firestore has 5 collections, and posts have `reactions` and `comments` sub-collections:
 
 | Collection | Document ID | Fields |
 |---|---|---|
@@ -54,10 +54,11 @@ User accounts (email and password) are in Firebase Authentication. Firestore has
 | `posts/{postId}/reactions` | The ID of the user who reacted | `reaction`: one of the 6 moods. One per user per post |
 | `posts/{postId}/comments` | A new ID | `authorId`, `authorUsername`, `text` (up to 500 characters), `createdAt`. The commenter's mood is not saved: their avatar reads their current mood from their profile |
 | `postImages` | The post's ID | `ownerId`, `data` (the photo as base64 text), `createdAt` |
+| `profileImages` | The user's ID | `data` (the profile photo: a 300 x 300 px JPEG as base64 text), `updatedAt`. One per user; a new photo replaces the old one |
 
 The username is the document ID, so two users can never have the same one. The email is not saved in Firestore.
 
-There are two separate lists of six: the **moods** (happy, sad, angry, love, surprised, funny) for how a user feels, a post's mood and, later, reactions to posts; and the **post types** (love, gratitude, apology, appreciation, mindfulness, thank_you) for what kind of post it is.
+There are two separate lists of six: the **moods** (happy, sad, angry, love, surprised, funny) for how a user feels (their current mood), a post's mood and reactions to posts; and the **post types** (love, gratitude, apology, appreciation, mindfulness, thank_you) for what kind of post it is.
 
 ## Security rules summary
 
@@ -65,13 +66,14 @@ There are two separate lists of six: the **moods** (happy, sad, angry, love, sur
 - A new user can create only their own profile and username, both together and only once.
 - A new profile must have the starting values, so nobody can sign up as an admin or with extra fields.
 - Anyone can read one user's profile, but nobody can list all profiles.
-- Users can edit only their own display name, bio, photo flag and mood (one of the 6 user moods, or none). They can never change their own role, blocked status, username or join date, so nobody can make themselves an admin.
+- Users can edit only their own display name, bio (up to 150 characters), photo flag and mood (one of the 6 user moods, or none). They can never change their own role, blocked status, username or join date, so nobody can make themselves an admin. The photo flag must say whether their profile photo really exists.
+- Anyone can read one profile photo. Users can save only their own (up to 300,000 characters of base64 text), together with turning their photo flag on. Profile photos can't be removed yet.
 - Nobody can delete profiles from the app yet, and nobody can change or delete usernames.
 - A logged-in user who is not blocked can create a post as themselves, with their real username, a valid type and mood, text that isn't empty (up to 5,000 characters) and all counts at 0.
 - A post photo can only be created together with its post, by its author, and must be small enough for one document.
 - Anyone, even logged out, can read posts and list them (the For You feed), and read one post photo at a time. Nobody can list all photos.
 - Anyone can read reactions. A logged-in user who is not blocked can set, switch or remove only their own reaction (one of the 6 moods), on any post including their own.
-- The only change anyone can make to a post is its reaction counts, and only by exactly what their own reaction adds or removes in the same step.
+- The only changes to a post are its reaction counts (only by exactly what the user's own reaction adds or removes in the same step), its comment count (see below), and, by its author only, the copies of their username and photo flag, which must match their profile.
 - Anyone can read comments. A logged-in user who is not blocked can add comments as themselves (up to 500 characters, not only spaces) and delete only their own. Deleting other people's comments is for admins (Task 17). Comments can't be edited.
 - Adding or deleting a comment must change the post's comment count by exactly 1 in the same step.
 - Authors can delete their own posts, always together with the post's photo. When a post is deleted, its author may delete all its comments and reactions (also other people's) in the same step. Comments and reactions left over from a deleted post can be cleaned up by any logged-in user.
@@ -552,3 +554,71 @@ There are two separate lists of six: the **moods** (happy, sad, angry, love, sur
 - Only the author can delete a post from the app. Admins will delete any post in Task 17, with the same `deletePost`.
 - The menu's only action is "Delete post" (team decision).
 - Deleting asks first with the phone's own dialog, or the browser's confirm box on the web.
+
+### Task 11 — My profile
+
+**What it does:** The Profile tab is built from the designer's mockup. At the top: a share button (look only), your @username and a ☰ button. Then your avatar (photo or initials, with your mood ring and emoji), your name, a "Feeling happy" mood pill that opens the Mood tab, your bio, and three numbers: posts, friends and reactions (all reactions your posts got). "Edit profile" opens a pop-up to change your photo (cropped square, 300 x 300 px) and bio (up to 150 characters). "Invite friends" opens the Friend List tab. Below is "My posts" with chips to show all posts or only one post type, 10 at a time. ☰ opens "Account settings": for now it shows your username and email, and only Log out works. The Mood tab shows your current mood; tap it and pick one of the 6 moods to change it. Everything stays after closing the app.
+
+**Files:**
+- `app/(tabs)/profile.js`: the Profile tab: header, my posts, and the two pop-ups
+- `app/(tabs)/_layout.js`: Profile has no default title bar (the design has its own top bar)
+- `app/(tabs)/mood.js`: the Mood tab (plain until its mockup arrives)
+- `src/features/profile/ProfileHeader.js`: everything above the posts
+- `src/features/profile/MoodPill.js`: the "Feeling happy" pill
+- `src/features/profile/ProfileStats.js`: the posts / friends / reactions boxes
+- `src/features/profile/EditProfileModal.js`: the Edit profile pop-up
+- `src/features/profile/AccountSettingsModal.js`: the Account settings pop-up
+- `src/features/profile/useProfileStats.js`: loads the post and reaction numbers
+- `src/features/profile/useProfilePhoto.js`: loads profile photos once and shows a new photo everywhere
+- `src/features/profile/CurrentMood.js`, `MoodPicker.js`: the Mood tab's parts
+- `src/features/profile/Avatar.js`: now shows the user's photo when they have one (initials otherwise)
+- `src/features/profile/profileService.js`: saves the photo, bio and mood
+- `src/features/posts/PostTypeFilter.js`: the All / post type chips
+- `src/features/posts/PostList.js`: the list of post cards, shared by the For You feed and my posts
+- `src/features/posts/ForYouFeed.js`: now just the shared list with all posts
+- `src/features/posts/postService.js`, `usePaginatedPosts.js`: load one user's posts, optionally of one type, and count posts and reactions
+- `src/features/posts/PostCard.js`, `PostAuthorMood.js`, `NewPostForm.js`, `src/features/comments/CommentItem.js`, `app/post/[id].js`: pass the photo to the avatars
+- `src/components/AppModal.js`: the shared pop-up card with a title and ✕
+- `src/utils/images.js`: makes a picked photo a small square for the profile
+- `src/theme/colors.js`: the dimmed colour behind pop-ups
+- `assets/images/`: the ☰, log out and dark share icons
+- `firestore.rules`: profile photos, the photo flag, and authors updating the copies on their posts
+- `firestore.indexes.json`: the two indexes for "my posts"
+
+**Main functions / hooks / components:**
+- `saveProfilePhoto`: saves the photo and turns `hasPhoto` on in one batch, together with `authorHasPhoto` on all the user's posts
+- `saveBio`, `saveMood`: save the bio, and the current mood with its time
+- `fetchAuthorStats`: asks Firestore to count a user's posts and add up their reactions, without downloading the posts
+- `useProfileStats`: the numbers for the profile, loaded again after a refresh or a deleted post
+- `useProfilePhoto`: returns a user's photo for an avatar; `rememberProfilePhoto` shows a new photo at once
+- `prepareProfilePhoto`: crops the photo square, makes it 300 x 300 px and small enough
+- `PostList`: the post list with pages, pull to refresh, a post type filter, and loading, empty and error states
+- `AppModal`: the pop-up card used by Edit profile and Account settings
+
+**Firestore:** reads and writes `users/{uid}` (bio, mood, moodUpdatedAt, hasPhoto) and `profileImages/{uid}`; reads `posts` where `authorId` is the user (and `postType` when filtered), newest first; counts those posts and adds up their `reactionCounts`; updates `authorHasPhoto` on the user's posts.
+
+**Firebase console steps:**
+- Publish the new `firestore.rules` in Firestore Database → Rules.
+- Create two composite indexes on the `posts` collection (Firestore Database → Indexes → Create index):
+  - `authorId` Ascending, `createdAt` Descending (my posts)
+  - `authorId` Ascending, `postType` Ascending, `createdAt` Descending (my posts of one type)
+
+**How to test:**
+1. Log in and open Profile. It shows your @username, avatar, name, mood pill, bio and the numbers. Only your posts are listed, newest first, and more load when you scroll.
+2. Tap a post type chip: only posts of that type show. A type you never used says "You have no … posts yet." Tap All to see everything.
+3. Tap Edit profile, change the photo and bio, and tap Save. The pop-up closes and the new photo and bio show at once, also on your posts and comments.
+4. Tap the mood pill: the Mood tab opens. Tap the mood, pick another one, go back: the pill and avatar ring changed.
+5. Tap Invite friends: the Friend List tab opens.
+6. Delete one of your posts: the posts and reactions numbers go down.
+7. Tap ☰: Account settings shows your username and email; tap Log out and you are back on Home.
+8. Close and reopen the app: photo, bio and mood are still there.
+
+**Notes / limits:**
+- The Mood tab has no mockup yet, so it uses plain buttons.
+- The big name is the display name, which is the username (there is no full-name field). Post cards still show @username only (team decision).
+- "friends" shows 0 until the friends tasks (13 and 14).
+- Share does nothing (look only, team decision).
+- Account settings: the username, email and password fields only show the current values; changing them comes in Task 16. The hint says 6 characters (the team kept 6, the mockup says 8).
+- A profile photo can be changed but not removed (not in the plan).
+- Other people's new photos show after reopening the app; your own shows at once.
+- The current mood is just one mood: no history or chart (out of scope).

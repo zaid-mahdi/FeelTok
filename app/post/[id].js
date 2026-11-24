@@ -124,7 +124,7 @@ export default function PostScreen() {
           <View style={styles.comment}>
             <CommentItem
               comment={item}
-              moodKey={comments.profilesById[item.authorId]?.mood ?? null}
+              authorProfile={comments.profilesById[item.authorId] ?? null}
               onDeletePress={
                 user && item.authorId === user.uid
                   ? () => handleDeleteComment(item.id)

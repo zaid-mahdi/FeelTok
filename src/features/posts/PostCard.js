@@ -48,11 +48,15 @@ export default function PostCard({
   onCommentPress,
   onDeleted,
 }) {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [isExpanded, setIsExpanded] = useState(false);
   const [actionErrorMessage, setActionErrorMessage] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const isOwnPost = Boolean(user) && post.authorId === user.uid;
+  // On your own posts the avatar follows your live profile, so a new photo
+  // shows at once.
+  const authorHasPhoto =
+    isOwnPost && profile ? profile.hasPhoto : post.authorHasPhoto;
   const mood = findMood(post.authorMood);
   const isShortened = !isFullText && !isExpanded && isLongText(post.text);
 
@@ -141,6 +145,8 @@ export default function PostCard({
       <View style={styles.header}>
         <Avatar
           name={post.authorUsername}
+          uid={post.authorId}
+          hasPhoto={authorHasPhoto}
           moodKey={post.authorMood}
           size={50}
           hasBadge

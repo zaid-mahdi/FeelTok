@@ -1,7 +1,9 @@
 // Post service: the Firestore calls for posts and their photos.
 import {
   collection,
+  count,
   doc,
+  getAggregateFromServer,
   getDoc,
   getDocs,
   limit,
@@ -9,6 +11,8 @@ import {
   query,
   serverTimestamp,
   startAfter,
+  sum,
+  where,
   writeBatch,
 } from "firebase/firestore";
 import { USER_MOODS } from "../../constants/moods";
@@ -56,12 +60,19 @@ export async function createPost({ author, text, postType, mood, photoBase64 }) 
   return postRef.id;
 }
 
-// Loads one page of the For You feed: all posts, newest first. Takes the last
-// post snapshot of the previous page, or null for the first page. Returns
-// { posts, lastSnapshot, hasMore }: lastSnapshot is passed in to get the next
-// page, and hasMore is false once the oldest post has been loaded.
-export async function fetchPostsPage(afterSnapshot) {
+// Loads one page of posts, newest first. Takes the last post snapshot of the
+// previous page (or null for the first page) and optional filters: authorId
+// (only one user's posts, for profiles) and postType (only one post type).
+// Returns { posts, lastSnapshot, hasMore }: lastSnapshot is passed in to get
+// the next page, and hasMore is false once the oldest post has been loaded.
+// The filters need composite indexes, see firestore.indexes.json.
+export async function fetchPostsPage(
+  afterSnapshot,
+  { authorId = null, postType = null } = {},
+) {
   const constraints = [orderBy("createdAt", "desc"), limit(POSTS_PER_PAGE)];
+  if (postType) constraints.unshift(where("postType", "==", postType));
+  if (authorId) constraints.unshift(where("authorId", "==", authorId));
   if (afterSnapshot) constraints.push(startAfter(afterSnapshot));
   const snapshot = await getDocs(query(collection(db, "posts"), ...constraints));
 
@@ -72,6 +83,32 @@ export async function fetchPostsPage(afterSnapshot) {
     })),
     lastSnapshot: snapshot.docs.at(-1) ?? afterSnapshot,
     hasMore: snapshot.docs.length === POSTS_PER_PAGE,
+  };
+}
+
+// Takes a user ID and returns { postCount, reactionCount }: how many posts
+// they have, and how many reactions all their posts got together. Firestore
+// counts and adds them up on the server, so the posts are not downloaded.
+export async function fetchAuthorStats(authorId) {
+  const authorPosts = query(
+    collection(db, "posts"),
+    where("authorId", "==", authorId),
+  );
+  // One question can ask for at most 5 results, so the 6 moods are split.
+  const moodKeys = USER_MOODS.map((mood) => mood.key);
+  const sumsOfMoods = (keys) =>
+    Object.fromEntries(keys.map((key) => [key, sum(`reactionCounts.${key}`)]));
+  const [firstAnswer, secondAnswer] = await Promise.all([
+    getAggregateFromServer(authorPosts, {
+      postCount: count(),
+      ...sumsOfMoods(moodKeys.slice(0, 4)),
+    }),
+    getAggregateFromServer(authorPosts, sumsOfMoods(moodKeys.slice(4))),
+  ]);
+  const totals = { ...firstAnswer.data(), ...secondAnswer.data() };
+  return {
+    postCount: totals.postCount,
+    reactionCount: moodKeys.reduce((total, key) => total + (totals[key] ?? 0), 0),
   };
 }
 

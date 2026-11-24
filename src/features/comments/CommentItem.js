@@ -6,15 +6,17 @@ import { FONTS } from "../../theme/fonts";
 import { formatPostTime } from "../../utils/time";
 import Avatar from "../profile/Avatar";
 
-// Takes the comment, the commenter's current mood key (or null), and
-// onDeletePress: when given, a small "Delete" link is shown (only on the
-// user's own comments).
-export default function CommentItem({ comment, moodKey, onDeletePress }) {
+// Takes the comment, the commenter's profile (for their current mood and
+// photo; null if it couldn't be read), and onDeletePress: when given, a small
+// "Delete" link is shown (only on the user's own comments).
+export default function CommentItem({ comment, authorProfile, onDeletePress }) {
   return (
     <View style={styles.row}>
       <Avatar
         name={comment.authorUsername}
-        moodKey={moodKey}
+        uid={comment.authorId}
+        hasPhoto={authorProfile?.hasPhoto ?? false}
+        moodKey={authorProfile?.mood ?? null}
         size={40}
         hasBadge
       />

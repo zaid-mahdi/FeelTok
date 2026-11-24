@@ -86,6 +86,8 @@ export default function NewPostForm({ profile, onPosted }) {
       >
         <PostAuthorMood
           name={profile.displayName}
+          uid={profile.uid}
+          hasPhoto={profile.hasPhoto}
           profileMoodKey={profile.mood ?? null}
           moodKey={moodKey}
           onMoodChange={setMoodKey}
