@@ -561,7 +561,7 @@ There are two separate lists of six: the **moods** (happy, sad, angry, love, sur
 - Posts can't be edited (MVP).
 - Only the author can delete a post from the app. Admins will delete any post in Task 17, with the same `deletePost`.
 - The menu's only action is "Delete post" (team decision).
-- Deleting asks first with the phone's own dialog, or the browser's confirm box on the web.
+- Deleting asks first. Changed after Task 14: it now uses the shared "Delete this post?" pop-up (`ConfirmDialog`, the same design as Remove friend: 🗑️, Cancel and a red Delete button), the same on phones and on the web. Deleting a comment still uses the phone's own dialog or the browser's confirm box.
 
 ### Task 11 — My profile
 
@@ -783,7 +783,7 @@ There are two separate lists of six: the **moods** (happy, sad, angry, love, sur
 - `src/features/friends/FriendRow.js`: one friend: avatar, username, mood tag, ⋮ menu
 - `src/features/friends/FriendMenu.js`: the ⋮ button and its menu (View profile, Remove friend)
 - `src/features/friends/useFriends.js`: loads the friends, refreshes them and removes one
-- `src/components/ConfirmDialog.js`: a shared confirm pop-up (emoji, question, explanation, Cancel and a red button); works the same on phones and in the browser, so the admin dashboard can reuse it
+- `src/components/ConfirmDialog.js` (also used by Delete post on post cards): a shared confirm pop-up (emoji, question, explanation, Cancel and a red button); works the same on phones and in the browser, so the admin dashboard can reuse it
 - `src/features/friends/friendService.js`: now also reads, counts and removes friendships
 - `src/features/profile/useProfileStats.js`, `ProfileStats.js`, `ProfileHeader.js`, `app/(tabs)/profile.js`: the friend count on your own profile; other people's profiles don't show a friends box
 - `src/utils/time.js`: the short "10m" / "yesterday" time after a mood

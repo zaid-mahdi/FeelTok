@@ -5,11 +5,11 @@ import { Image } from "expo-image";
 import { router } from "expo-router";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import ConfirmDialog from "../../components/ConfirmDialog";
 import ErrorText from "../../components/ErrorText";
 import { findMood } from "../../constants/moods";
 import { COLORS } from "../../theme/colors";
 import { FONTS } from "../../theme/fonts";
-import { confirmAction } from "../../utils/confirm";
 import { friendlyError } from "../../utils/errors";
 import { formatPostTime } from "../../utils/time";
 import { useAuth } from "../auth/AuthContext";
@@ -67,6 +67,7 @@ export default function PostCard({
   const [isExpanded, setIsExpanded] = useState(false);
   const [actionErrorMessage, setActionErrorMessage] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const isOwnPost = Boolean(user) && post.authorId === user.uid;
   // On your own posts the avatar follows your live profile, so a new photo
   // shows at once.
@@ -121,23 +122,25 @@ export default function PostCard({
     }
   }
 
-  // Asks first, then deletes the post with its photo, comments and
-  // reactions, and tells the page it is gone.
-  async function handleDeletePress() {
-    const isConfirmed = await confirmAction(
-      "Delete this post?",
-      "Its photo, comments and reactions will be deleted too. This can't be undone.",
-      "Delete",
-    );
-    if (!isConfirmed) return;
+  // Opens the "Delete this post?" pop-up.
+  function handleDeletePress() {
+    setIsDeleteDialogOpen(true);
+  }
+
+  // Deletes the post with its photo, comments and reactions, closes the
+  // pop-up and tells the page it is gone. If it fails, the pop-up closes and
+  // the error shows on the card.
+  async function handleConfirmDelete() {
     setActionErrorMessage(null);
     setIsDeleting(true);
     try {
       await deletePost(post);
+      setIsDeleteDialogOpen(false);
       onDeleted?.(post.id);
     } catch (error) {
       setActionErrorMessage(friendlyError(error));
       setIsDeleting(false);
+      setIsDeleteDialogOpen(false);
     }
   }
 
@@ -249,6 +252,16 @@ export default function PostCard({
           <Text style={styles.actionText}>Share</Text>
         </View>
       </View>
+      <ConfirmDialog
+        isVisible={isDeleteDialogOpen}
+        emoji="🗑️"
+        title="Delete this post?"
+        message="Its photo, comments and reactions will be deleted too. This can't be undone."
+        confirmText="Delete"
+        isConfirming={isDeleting}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setIsDeleteDialogOpen(false)}
+      />
       {actionErrorMessage && (
         <View style={styles.actionError}>
           <ErrorText message={actionErrorMessage} />
