@@ -6,7 +6,7 @@ This file describes the project as it is built today. It is updated after every 
 
 FeelTok is a small social app where emotions are central. Users will use it as a mobile app, and admins will use a dashboard in the browser. Both come from the same project.
 
-So far, sign up, login and forgot password work and have their final design. Roles work: the app works on phones and in the browser, and admins sign in at `/admin` in the browser. Users can create posts on the New post page, and everyone, even logged out, can read all posts in the For You feed on Home. Logged-in users react to posts with one of the 6 moods, and comment on the post page. Users can delete their own posts. All other pages are placeholders. The team's designer is still working on those pages.
+So far, sign up, login and forgot password work and have their final design. Roles work: the app works on phones and in the browser, and admins sign in at `/admin` in the browser. Users can create posts on the New post page, and everyone, even logged out, can read all posts in the For You feed on Home. Logged-in users react to posts with one of the 6 moods, and comment on the post page. Users can delete their own posts, have a profile page with photo, bio and current mood, change their mood on the Mood tab, and open other people's profiles. On the Friend List tab, users add friends with invite codes (the friend list itself comes in Task 14). All other pages are placeholders. The team's designer is still working on those pages.
 
 **Tech stack:** Expo (React Native) with Expo Router, JavaScript only, Firebase Authentication (email and password) and Cloud Firestore. We use the free Firebase plan.
 
@@ -33,6 +33,7 @@ So far, sign up, login and forgot password work and have their final design. Rol
 | `src/features/posts/` | Posts: the New post page, the post list (For You feed and my posts) and the post card |
 | `src/features/reactions/` | Reacting to posts with a mood: the React button and its Firestore calls |
 | `src/features/comments/` | Comments: the comment box, one comment, and their Firestore calls |
+| `src/features/friends/` | Friends: invite codes, adding a friend with a code, and the Friends page parts |
 | `src/features/admin/` | The admin sign-in page |
 | `src/components/` | Small pieces shared by many screens |
 | `src/constants/` | Fixed lists: the 6 user moods and the 6 post types (two separate lists) |
@@ -45,7 +46,7 @@ So far, sign up, login and forgot password work and have their final design. Rol
 
 ## Data model
 
-User accounts (email and password) are in Firebase Authentication. Firestore has 5 collections, and posts have `reactions` and `comments` sub-collections:
+User accounts (email and password) are in Firebase Authentication. Firestore has 7 collections, and posts have `reactions` and `comments` sub-collections:
 
 | Collection | Document ID | Fields |
 |---|---|---|
@@ -55,6 +56,8 @@ User accounts (email and password) are in Firebase Authentication. Firestore has
 | `posts/{postId}/reactions` | The ID of the user who reacted | `reaction`: one of the 6 moods. One per user per post |
 | `posts/{postId}/comments` | A new ID | `authorId`, `authorUsername`, `text` (up to 500 characters), `createdAt`. The commenter's mood is not saved: their avatar reads their current mood from their profile |
 | `postImages` | The post's ID | `ownerId`, `data` (the photo as base64 text), `createdAt` |
+| `inviteCodes` | The code itself (6 characters, no I, O, 0 or 1) | `ownerId` (who made it), `usedBy` (the friend who used it, or null), `usedAt` (or null), `createdAt`. Each code works once |
+| `friendships` | The two user IDs, sorted and joined with "_" | `members` (the two user IDs, sorted), `inviteCode` (the code used to become friends), `createdAt`. The ID makes two friendships between the same people impossible |
 | `profileImages` | The user's ID | `data` (the profile photo: a 300 x 300 px JPEG as base64 text), `updatedAt`. One per user; a new photo replaces the old one |
 
 The username is the document ID, so two users can never have the same one. The email is not saved in Firestore.
@@ -79,6 +82,9 @@ There are two separate lists of six: the **moods** (happy, sad, angry, love, sur
 - Adding or deleting a comment must change the post's comment count by exactly 1 in the same step.
 - Authors can delete their own posts, always together with the post's photo. When a post is deleted, its author may delete all its comments and reactions (also other people's) in the same step. Comments and reactions left over from a deleted post can be cleaned up by any logged-in user.
 - Posts and photos can't be edited.
+- A logged-in user who is not blocked can make invite codes for themselves (6 characters from the code alphabet, unused). They can list only their own codes. Anyone logged in can read one code if they know it.
+- A code can be used only once, never by its owner, and only in the same step as the friendship it creates. A friendship can only be created with a real, unused code, between the user and the code's owner, with the sorted IDs as its ID. So nobody can become friends with someone without their code.
+- Only the two friends can read their friendship. Friendships and codes can't be changed or deleted yet (removing a friend is Task 14).
 - Everything else is locked. Each task opens only what it needs.
 
 ---
@@ -719,3 +725,49 @@ There are two separate lists of six: the **moods** (happy, sad, angry, love, sur
 **Notes / limits:**
 - A post can't have a mood other than your current one, and you can't pick "No mood" for one post.
 - If you change your mood on one phone and post from another in the same second, the post can be refused once; posting again works.
+
+### Task 13 — Invite codes + add friend
+
+**What it does:** The Friend List tab now has the Friends header with a pink Invite button. Invite opens "Invite a friend" from the bottom of the screen. It shows your invite code as 6 coloured letters, with Copy (puts it on the clipboard) and Share (look only: it does nothing, team decision). Each code works once: when a friend has used it, a new one is made the next time you open Invite. Under it, "Got a friend's code?" lets you type a friend's code and tap Add friend to become friends at once. The friend list itself comes in Task 14.
+
+**Files:**
+- `app/(tabs)/friends.js`: the Friends page: header, a temporary "Your friends will show here" card, and the Invite pop-up
+- `src/features/friends/FriendsHeader.js`: the "Friends" title and the Invite button
+- `src/features/friends/InviteFriendModal.js`: the "Invite a friend" pop-up
+- `src/features/friends/InviteCodeCard.js`: the dark card with the code, Copy and Share (look only)
+- `src/features/friends/AddFriendForm.js`: the code box and Add friend button, with error and success messages
+- `src/features/friends/useInviteCode.js`: loads (or makes) the user's code when the pop-up opens
+- `src/features/friends/inviteCodeService.js`: makes, finds and saves invite codes
+- `src/features/friends/friendService.js`: uses a friend's code to create the friendship
+- `src/components/AppModal.js`: can now also be a sheet at the bottom of the screen
+- `src/utils/validation.js`: the code length, the code alphabet and the code check
+- `src/utils/errors.js`: the messages for each wrong code
+- `app/(tabs)/_layout.js`: the Friends tab uses its own header
+- `firestore.rules`: rules for invite codes and friendships
+- New icons: `icon-invite-white.svg`, `icon-copy-white.svg`, `icon-share-white.svg`. New package: `expo-clipboard` (for Copy)
+
+**Main functions / hooks / components:**
+- `generateInviteCode`: makes a random 6-character code without look-alike characters
+- `getOrCreateInviteCode`: returns the user's unused code, or makes a new one (trying again if a code is taken)
+- `redeemInviteCode`: in one transaction, checks the code (exists, not used, not your own, not already friends), marks it as used and creates the friendship
+- `getFriendshipId`: the two user IDs sorted and joined with "_"
+- `useInviteCode`: the code for the pop-up, with loading, error and "Try again"
+
+**Firestore:** reads and writes `inviteCodes`, creates `friendships`, reads `users` (the new friend's username for the success message).
+
+**Firebase console steps:** publish the new `firestore.rules` in Firestore Database → Rules. No index is needed: finding your unused code reads only your own codes.
+
+**How to test:**
+1. On phone A, open the Friend List tab and tap Invite. A 6-letter code shows. Close and open it again: the same code.
+2. Tap Copy: the button says "Copied!" for 2 seconds, and pasting gives the code. Share does nothing (look only).
+3. Type your own code and tap Add friend: "That's your own code." Type 3 letters: "Enter the 6-character code." Type a made-up code: "This code doesn't exist."
+4. On phone B (another account), tap Invite, type A's code and tap Add friend: "You're now friends with @…!".
+5. On phone B, try A's code again: "This code was already used."
+6. On phone A, open Invite again: there is a new code. On phone B, use that new code: "You're already friends with this person."
+7. In the Firebase console, `inviteCodes` and `friendships` now have documents.
+
+**Notes / limits:**
+- The friend list, remove friend and the friend count on profiles come in Task 14.
+- Share is look only, like Share on posts and profiles (team decision).
+- A friendship stores the code that was used, so the rules can check a real code made it.
+- The Search box, refresh button and friend count in the mockup come with the friend list (Task 14).

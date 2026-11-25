@@ -284,6 +284,73 @@ service cloud.firestore {
         && getAfter(/databases/$(database)/documents/users/$(uid)).data.hasPhoto == true;
     }
 
+    // Returns the ID of the friendship between two users: their IDs sorted
+    // and joined with "_" (the same as getFriendshipId in friendService.js).
+    function friendshipIdOf(uidA, uidB) {
+      return uidA < uidB ? uidA + '_' + uidB : uidB + '_' + uidA;
+    }
+
+    // Invite codes: the code is the document ID, 6 characters without
+    // look-alikes (no I, O, 0 or 1). A logged-in user who isn't blocked can
+    // make codes for themselves and list only their own. Anyone logged in can
+    // read one code if they know it. A code can be used once, never by its
+    // owner, and only in the same step as the new friendship it creates.
+    match /inviteCodes/{code} {
+      allow get: if request.auth != null;
+      allow list: if request.auth != null
+        && resource.data.ownerId == request.auth.uid;
+      allow create: if request.auth != null
+        && isNotBlocked()
+        && code.matches('^[A-HJ-NP-Z2-9]{6}$')
+        && hasExactly(request.resource.data, ['ownerId', 'usedBy', 'usedAt', 'createdAt'])
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.usedBy == null
+        && request.resource.data.usedAt == null
+        && request.resource.data.createdAt == request.time;
+      allow update: if request.auth != null
+        && isNotBlocked()
+        && resource.data.usedBy == null
+        && resource.data.ownerId != request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['usedBy', 'usedAt'])
+        && request.resource.data.usedBy == request.auth.uid
+        && request.resource.data.usedAt == request.time
+        && !exists(/databases/$(database)/documents/friendships/$(friendshipIdOf(request.auth.uid, resource.data.ownerId)))
+        && existsAfter(/databases/$(database)/documents/friendships/$(friendshipIdOf(request.auth.uid, resource.data.ownerId)));
+    }
+
+    // True if the new friendship is valid: between the logged-in user and the
+    // owner of the invite code they use in this same step (the code was unused
+    // before and is marked as used by them after), with the two IDs sorted as
+    // its document ID. So nobody can become friends without a real code.
+    function isValidNewFriendship(friendshipId) {
+      let friendship = request.resource.data;
+      let codePath = /databases/$(database)/documents/inviteCodes/$(friendship.inviteCode);
+      let codeBefore = get(codePath).data;
+      return hasExactly(friendship, ['members', 'inviteCode', 'createdAt'])
+        && friendship.members is list
+        && friendship.members.size() == 2
+        && friendship.members[0] < friendship.members[1]
+        && friendshipId == friendship.members[0] + '_' + friendship.members[1]
+        && request.auth.uid in friendship.members
+        && friendship.createdAt == request.time
+        && friendship.inviteCode is string
+        && codeBefore.usedBy == null
+        && codeBefore.ownerId != request.auth.uid
+        && codeBefore.ownerId in friendship.members
+        && getAfter(codePath).data.usedBy == request.auth.uid;
+    }
+
+    // Friendships: only the two friends can read theirs (and anyone logged in
+    // can check that one doesn't exist yet, when adding a friend). A logged-in
+    // user who isn't blocked can create one with a friend's invite code.
+    match /friendships/{friendshipId} {
+      allow get: if request.auth != null
+        && (resource == null || request.auth.uid in resource.data.members);
+      allow create: if request.auth != null
+        && isNotBlocked()
+        && isValidNewFriendship(friendshipId);
+    }
+
     // Post photos: anyone can read one photo (not list them all). Created only
     // together with their post (same ID), by the post's author, as base64 text
     // of up to 900,000 characters, so it always fits in a Firestore document.

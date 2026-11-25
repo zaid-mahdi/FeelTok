@@ -77,3 +77,29 @@ export function validatePost(text, postType) {
 
 // Comments: up to 500 characters (the same limit is in firestore.rules).
 export const MAX_COMMENT_CHARACTERS = 500;
+
+// Invite codes: 6 characters from letters and numbers that don't look alike
+// (no I, O, 0 or 1). The same rule is in firestore.rules.
+export const INVITE_CODE_LENGTH = 6;
+export const INVITE_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+// Takes what the user typed in the code box and returns it in capitals,
+// without spaces or other signs.
+export function normalizeInviteCode(text) {
+  return text.toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+// Takes a normalized code and returns an error message, or null if it could
+// be a real code. Firestore checks if it exists.
+export function validateInviteCode(code) {
+  if (code.length !== INVITE_CODE_LENGTH) {
+    return `Enter the ${INVITE_CODE_LENGTH}-character code.`;
+  }
+  const hasOnlyCodeCharacters = [...code].every((character) =>
+    INVITE_CODE_ALPHABET.includes(character),
+  );
+  if (!hasOnlyCodeCharacters) {
+    return "This code doesn't exist. Check it and try again.";
+  }
+  return null;
+}

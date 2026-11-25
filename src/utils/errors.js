@@ -8,6 +8,20 @@ export const USERNAME_TAKEN_CODE = "username-taken";
 export const PHOTO_TOO_BIG_CODE = "photo-too-big";
 export const PHOTO_TOO_DETAILED_CODE = "photo-too-detailed";
 
+// Our own error codes for adding a friend with an invite code.
+export const INVITE_CODE_NOT_FOUND_CODE = "invite-code-not-found";
+export const INVITE_CODE_USED_CODE = "invite-code-used";
+export const OWN_INVITE_CODE_CODE = "own-invite-code";
+export const ALREADY_FRIENDS_CODE = "already-friends";
+
+// Takes one of our own error codes and returns an error with that code, so
+// friendlyError() can show its message.
+export function createAppError(code) {
+  const error = new Error(code);
+  error.code = code;
+  return error;
+}
+
 const ERROR_MESSAGES = {
   "auth/invalid-credential": "Wrong email or password.",
   "auth/invalid-login-credentials": "Wrong email or password.",
@@ -24,6 +38,13 @@ const ERROR_MESSAGES = {
   [PHOTO_TOO_BIG_CODE]: "This photo is too big. Pick one up to 10 MB.",
   [PHOTO_TOO_DETAILED_CODE]:
     "We could not make this photo small enough. Please pick another one.",
+  [INVITE_CODE_NOT_FOUND_CODE]:
+    "This code doesn't exist. Check it and try again.",
+  [INVITE_CODE_USED_CODE]:
+    "This code was already used. Ask your friend for a new one.",
+  [OWN_INVITE_CODE_CODE]:
+    "That's your own code. Share it with a friend instead.",
+  [ALREADY_FRIENDS_CODE]: "You're already friends with this person.",
   "permission-denied": "You don't have permission to do this.",
   unavailable: "No internet connection. Please check it and try again.",
 };

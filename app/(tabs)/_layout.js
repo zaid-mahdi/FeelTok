@@ -35,7 +35,7 @@ export default function TabsLayout() {
       />
       <Tabs.Screen
         name="friends"
-        options={{ title: "Friend List" }}
+        options={{ title: "Friend List", headerShown: false }}
         listeners={{ tabPress: handleLoginOnlyTabPress }}
       />
       <Tabs.Screen

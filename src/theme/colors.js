@@ -36,6 +36,9 @@ export const COLORS = {
   // The dashed outline of "Add a photo" on the New post page
   photoBorder: "rgba(108, 44, 255, 0.35)",
 
+  // The pink glow under the Invite button on the Friends page
+  pinkShadow: "rgba(255, 45, 120, 0.3)",
+
   // The dimmed page behind a modal (Midnight Ink, see-through)
   backdrop: "rgba(20, 18, 42, 0.45)",
 
