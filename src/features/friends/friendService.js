@@ -1,7 +1,17 @@
 // Friend service: the Firestore calls for friendships. A friendship's ID is
 // the two user IDs sorted and joined with "_", so the same two people can
 // never have two friendships.
-import { doc, runTransaction, serverTimestamp } from "firebase/firestore";
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getCountFromServer,
+  getDocs,
+  query,
+  runTransaction,
+  serverTimestamp,
+  where,
+} from "firebase/firestore";
 import { db } from "../../lib/firebase";
 import {
   ALREADY_FRIENDS_CODE,
@@ -10,6 +20,7 @@ import {
   OWN_INVITE_CODE_CODE,
   createAppError,
 } from "../../utils/errors";
+import { fetchProfiles } from "../profile/profileService";
 
 // Takes two user IDs and returns them sorted, as the friendship's members.
 export function sortFriendIds(uidA, uidB) {
@@ -55,4 +66,48 @@ export async function redeemInviteCode(uid, code) {
     });
     return invite.ownerId;
   });
+}
+
+// Takes a user ID and returns the query for all their friendships. Only the
+// two friends can read a friendship, so the query must ask for the user's own.
+function getMyFriendshipsQuery(uid) {
+  return query(
+    collection(db, "friendships"),
+    where("members", "array-contains", uid),
+  );
+}
+
+// Takes a friend and returns a number for sorting: the time of their last
+// mood change, or 0 when they have none, so the newest moods come first.
+function getMoodTime(friend) {
+  return friend.profile.moodUpdatedAt?.toMillis() ?? 0;
+}
+
+// Takes the logged-in user's ID and returns their friends: a list of
+// { friendshipId, uid, profile }, newest mood change first. Friends whose
+// profile no longer exists are left out.
+export async function fetchFriends(uid) {
+  const snapshot = await getDocs(getMyFriendshipsQuery(uid));
+  const friendships = snapshot.docs.map((friendshipSnapshot) => ({
+    friendshipId: friendshipSnapshot.id,
+    uid: friendshipSnapshot.data().members.find((memberUid) => memberUid !== uid),
+  }));
+  const profiles = await fetchProfiles(friendships.map((friendship) => friendship.uid));
+  return friendships
+    .filter((friendship) => profiles[friendship.uid])
+    .map((friendship) => ({ ...friendship, profile: profiles[friendship.uid] }))
+    .sort((friendA, friendB) => getMoodTime(friendB) - getMoodTime(friendA));
+}
+
+// Takes the logged-in user's ID and returns how many friends they have. It
+// asks Firestore to count, so the friendships are not downloaded.
+export async function countFriends(uid) {
+  const snapshot = await getCountFromServer(getMyFriendshipsQuery(uid));
+  return snapshot.data().count;
+}
+
+// Takes a friendship's ID and deletes it, so the two users are no longer
+// friends (for both of them).
+export async function removeFriend(friendshipId) {
+  await deleteDoc(doc(db, "friendships", friendshipId));
 }

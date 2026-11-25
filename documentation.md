@@ -6,7 +6,7 @@ This file describes the project as it is built today. It is updated after every 
 
 FeelTok is a small social app where emotions are central. Users will use it as a mobile app, and admins will use a dashboard in the browser. Both come from the same project.
 
-So far, sign up, login and forgot password work and have their final design. Roles work: the app works on phones and in the browser, and admins sign in at `/admin` in the browser. Users can create posts on the New post page, and everyone, even logged out, can read all posts in the For You feed on Home. Logged-in users react to posts with one of the 6 moods, and comment on the post page. Users can delete their own posts, have a profile page with photo, bio and current mood, change their mood on the Mood tab, and open other people's profiles. On the Friend List tab, users add friends with invite codes (the friend list itself comes in Task 14). All other pages are placeholders. The team's designer is still working on those pages.
+So far, sign up, login and forgot password work and have their final design. Roles work: the app works on phones and in the browser, and admins sign in at `/admin` in the browser. Users can create posts on the New post page, and everyone, even logged out, can read all posts in the For You feed on Home. Logged-in users react to posts with one of the 6 moods, and comment on the post page. Users can delete their own posts, have a profile page with photo, bio and current mood, change their mood on the Mood tab, and open other people's profiles. On the Friend List tab, users add friends with invite codes, see their friends' current moods, search their friends and remove friends. All other pages are placeholders. The team's designer is still working on those pages.
 
 **Tech stack:** Expo (React Native) with Expo Router, JavaScript only, Firebase Authentication (email and password) and Cloud Firestore. We use the free Firebase plan.
 
@@ -33,7 +33,7 @@ So far, sign up, login and forgot password work and have their final design. Rol
 | `src/features/posts/` | Posts: the New post page, the post list (For You feed and my posts) and the post card |
 | `src/features/reactions/` | Reacting to posts with a mood: the React button and its Firestore calls |
 | `src/features/comments/` | Comments: the comment box, one comment, and their Firestore calls |
-| `src/features/friends/` | Friends: invite codes, adding a friend with a code, and the Friends page parts |
+| `src/features/friends/` | Friends: invite codes, adding and removing friends, the friend list and the Friends page parts |
 | `src/features/admin/` | The admin sign-in page |
 | `src/components/` | Small pieces shared by many screens |
 | `src/constants/` | Fixed lists: the 6 user moods and the 6 post types (two separate lists) |
@@ -84,7 +84,8 @@ There are two separate lists of six: the **moods** (happy, sad, angry, love, sur
 - Posts and photos can't be edited.
 - A logged-in user who is not blocked can make invite codes for themselves (6 characters from the code alphabet, unused). They can list only their own codes. Anyone logged in can read one code if they know it.
 - A code can be used only once, never by its owner, and only in the same step as the friendship it creates. A friendship can only be created with a real, unused code, between the user and the code's owner, with the sorted IDs as its ID. So nobody can become friends with someone without their code.
-- Only the two friends can read their friendship. Friendships and codes can't be changed or deleted yet (removing a friend is Task 14).
+- Only the two friends can read their friendship. Users can list and count only their own friendships, so nobody can see who someone else is friends with.
+- Either friend can delete their friendship (remove friend), unless they are blocked. Friendships can't be edited, and codes can't be deleted.
 - Everything else is locked. Each task opens only what it needs.
 
 ---
@@ -767,7 +768,50 @@ There are two separate lists of six: the **moods** (happy, sad, angry, love, sur
 7. In the Firebase console, `inviteCodes` and `friendships` now have documents.
 
 **Notes / limits:**
-- The friend list, remove friend and the friend count on profiles come in Task 14.
 - Share is look only, like Share on posts and profiles (team decision).
 - A friendship stores the code that was used, so the rules can check a real code made it.
-- The Search box, refresh button and friend count in the mockup come with the friend list (Task 14).
+- The Search box, refresh button and friend count came with the friend list in Task 14.
+
+### Task 14 — Friend list with moods + remove friend
+
+**What it does:** The Friend List tab shows all your friends, with their avatar (mood ring and emoji), @username and current mood with how long ago they set it ("feeling sad · 10m"), or "No mood set". The friends with the newest mood change come first. The header shows how many friends you have. The list loads when you open the tab; pull down or tap the round refresh button to load it again (it doesn't update live). The search box filters the friends on screen by username. Tapping a friend, or "View profile" in their ⋮ menu, opens their profile. "Remove friend" opens a "Remove …?" pop-up (from its mockup) with Cancel and a red Remove button, then removes the friendship for both of you. Your own profile now shows your real number of friends.
+
+**Files:**
+- `app/(tabs)/friends.js`: the Friends page: header, list, search, menu, remove, pull to refresh, Invite pop-up
+- `src/features/friends/FriendsHeader.js`: now also the friend count, the refresh button and the search box
+- `src/features/friends/FriendList.js`: the white card with the friend rows, or the empty message
+- `src/features/friends/FriendRow.js`: one friend: avatar, username, mood tag, ⋮ menu
+- `src/features/friends/FriendMenu.js`: the ⋮ button and its menu (View profile, Remove friend)
+- `src/features/friends/useFriends.js`: loads the friends, refreshes them and removes one
+- `src/components/ConfirmDialog.js`: a shared confirm pop-up (emoji, question, explanation, Cancel and a red button); works the same on phones and in the browser, so the admin dashboard can reuse it
+- `src/features/friends/friendService.js`: now also reads, counts and removes friendships
+- `src/features/profile/useProfileStats.js`, `ProfileStats.js`, `ProfileHeader.js`, `app/(tabs)/profile.js`: the friend count on your own profile; other people's profiles don't show a friends box
+- `src/utils/time.js`: the short "10m" / "yesterday" time after a mood
+- `firestore.rules`: friends can list, count and delete their own friendships
+- New icons: `icon-search.svg`, `icon-refresh.svg`, `icon-more-vertical.svg`, `icon-profile-dark.svg`, `icon-remove-friend.svg`
+
+**Main functions / hooks / components:**
+- `fetchFriends`: reads your friendships, then your friends' profiles, newest mood change first
+- `countFriends`: asks Firestore for the number of your friendships (for your profile)
+- `removeFriend`: deletes a friendship
+- `useFriends`: the list with loading, refresh, error and remove
+- `FriendRow` / `FriendMenu`: one friend and their menu; only one menu is open at a time
+
+**Firestore:** reads `friendships` (only your own, with a members query) and `users` (your friends' profiles); deletes `friendships`.
+
+**Firebase console steps:** publish the new `firestore.rules` in Firestore Database → Rules. No index is needed (the friend query uses one field).
+
+**How to test:**
+1. Open Friend List: your friends show with their mood and time ("feeling sad · 10m"), newest first, and "N friends" at the top.
+2. Type part of a username in Search: only matching friends show. Type something else: "No friends match …".
+3. Tap a friend, or ⋮ → View profile: their profile opens (it has no friends box).
+4. On the other phone, change the mood. Pull down the list (or tap refresh): the new mood shows.
+5. ⋮ → Remove friend: the "Remove …?" pop-up shows. Cancel keeps the friend. Remove: they leave your list. On their phone, after a refresh, you are gone from theirs too.
+6. Your Profile shows your real number of friends.
+7. An account with no friends sees "No friends yet. Tap Invite …".
+
+**Notes / limits:**
+- The list doesn't update live (MVP): it reloads when the tab opens, on pull down and with the refresh button.
+- Search only filters your loaded friends; there is no search for other users (out of scope).
+- Other people's profiles don't show a friend count, because friendships are private (team decision).
+- After removing a friend, you can become friends again with a new code.

@@ -106,7 +106,7 @@ export default function ProfileHeader({
         <View style={styles.stats}>
           <ProfileStats
             postCount={stats.postCount}
-            friendCount={0}
+            friendCount={stats.friendCount}
             reactionCount={stats.reactionCount}
           />
         </View>

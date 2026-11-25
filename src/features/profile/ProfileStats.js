@@ -15,12 +15,15 @@ function StatBox({ value, label, backgroundColor }) {
 }
 
 // Takes the number of posts, friends and reactions (each a number, or null
-// while loading).
+// while loading). friendCount undefined hides the friends box (other people's
+// profiles: friendships are private).
 export default function ProfileStats({ postCount, friendCount, reactionCount }) {
   return (
     <View style={styles.row}>
       <StatBox value={postCount} label="posts" backgroundColor={COLORS.lightPurple} />
-      <StatBox value={friendCount} label="friends" backgroundColor={COLORS.lightPink} />
+      {friendCount !== undefined && (
+        <StatBox value={friendCount} label="friends" backgroundColor={COLORS.lightPink} />
+      )}
       <StatBox
         value={reactionCount}
         label="reactions"

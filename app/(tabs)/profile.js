@@ -27,7 +27,7 @@ function getEmptyMessage(postTypeKey) {
 // logging out) it goes to Home.
 export default function ProfileScreen() {
   const { user, profile, profileError } = useAuth();
-  const stats = useProfileStats(user?.uid ?? null);
+  const stats = useProfileStats(user?.uid ?? null, { hasFriendCount: true });
   const [selectedPostType, setSelectedPostType] = useState(null);
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);

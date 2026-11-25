@@ -341,14 +341,21 @@ service cloud.firestore {
     }
 
     // Friendships: only the two friends can read theirs (and anyone logged in
-    // can check that one doesn't exist yet, when adding a friend). A logged-in
-    // user who isn't blocked can create one with a friend's invite code.
+    // can check that one doesn't exist yet, when adding a friend). Users can
+    // list (and count) only their own friendships, with a query on members. A
+    // logged-in user who isn't blocked can create one with a friend's invite
+    // code, and either friend can delete it (remove friend, for both).
     match /friendships/{friendshipId} {
       allow get: if request.auth != null
         && (resource == null || request.auth.uid in resource.data.members);
+      allow list: if request.auth != null
+        && request.auth.uid in resource.data.members;
       allow create: if request.auth != null
         && isNotBlocked()
         && isValidNewFriendship(friendshipId);
+      allow delete: if request.auth != null
+        && isNotBlocked()
+        && request.auth.uid in resource.data.members;
     }
 
     // Post photos: anyone can read one photo (not list them all). Created only

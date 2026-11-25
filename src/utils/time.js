@@ -40,3 +40,13 @@ export function formatTimeAgo(timestamp) {
   if (age < 7 * DAY) return `${pluralize(Math.floor(age / DAY), "day")} ago`;
   return `on ${date.toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`;
 }
+
+// Takes a Firestore timestamp and returns the short text after a friend's
+// mood on the Friends page: "now", "10m", "2h", "yesterday", "3d", or a date
+// like "12 Nov".
+export function formatShortTimeAgo(timestamp) {
+  const postTime = formatPostTime(timestamp);
+  if (postTime === "Just now") return "now";
+  if (postTime === "Yesterday") return "yesterday";
+  return postTime;
+}
