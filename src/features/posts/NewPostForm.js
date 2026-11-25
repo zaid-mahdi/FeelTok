@@ -22,12 +22,11 @@ import PostTypePicker from "./PostTypePicker";
 import { createPost } from "./postService";
 
 // Takes the logged-in user's profile and a function called after the post
-// is saved. The mood starts on the user's current mood.
+// is saved. The post gets the user's current mood (changed on the Mood tab).
 export default function NewPostForm({ profile, onPosted }) {
   const insets = useSafeAreaInsets();
   const [postType, setPostType] = useState(null);
   const [text, setText] = useState("");
-  const [moodKey, setMoodKey] = useState(profile.mood ?? null);
   const [photo, setPhoto] = useState(null);
   const [isPreparingPhoto, setIsPreparingPhoto] = useState(false);
   const [isPosting, setIsPosting] = useState(false);
@@ -68,7 +67,6 @@ export default function NewPostForm({ profile, onPosted }) {
         author: profile,
         text,
         postType,
-        mood: moodKey,
         photoBase64: photo ? photo.base64 : null,
       });
       onPosted();
@@ -88,9 +86,7 @@ export default function NewPostForm({ profile, onPosted }) {
           name={profile.displayName}
           uid={profile.uid}
           hasPhoto={profile.hasPhoto}
-          profileMoodKey={profile.mood ?? null}
-          moodKey={moodKey}
-          onMoodChange={setMoodKey}
+          moodKey={profile.mood ?? null}
         />
 
         <PostFormSection title="Post type" note="Required">

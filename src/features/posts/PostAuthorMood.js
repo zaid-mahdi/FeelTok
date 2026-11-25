@@ -1,117 +1,55 @@
-// The top of the New post page: the author's avatar and name, the post's mood
-// ("feeling happy") and "Change mood", which opens the list of moods.
-import { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import { findMood, USER_MOODS } from "../../constants/moods";
+// The top of the New post page: the author's avatar and name, and their
+// current mood ("feeling happy"), which is saved with the post. The mood is
+// changed only on the Mood tab (team decision 2026-11-25), so it is read-only
+// here.
+import { router } from "expo-router";
+import { StyleSheet, Text, View } from "react-native";
+import { findMood } from "../../constants/moods";
 import { COLORS } from "../../theme/colors";
 import { FONTS } from "../../theme/fonts";
 import Avatar from "../profile/Avatar";
 
-// Shows one mood choice in the list (or "No mood" when mood is null), with a
-// border when it is the chosen one.
-function MoodOption({ mood, isSelected, onPress }) {
-  const label = mood ? `${mood.emoji} ${mood.key}` : "No mood";
-  return (
-    <Pressable
-      onPress={onPress}
-      role="radio"
-      aria-checked={isSelected}
-      accessibilityLabel={mood ? mood.key : "No mood"}
-      style={[
-        styles.option,
-        { backgroundColor: mood ? mood.tintColor : COLORS.white },
-        isSelected && {
-          borderColor: mood ? mood.ringColor : COLORS.grey,
-        },
-      ]}
-    >
-      <Text style={styles.optionText}>{label}</Text>
-    </Pressable>
-  );
-}
-
-// Takes the author's name, ID and hasPhoto (for the avatar), their avatar
-// mood (their current mood), the post's mood key (or null) and a function
-// called with the new mood key (or null). Changing the mood here only changes this post, not the profile.
-export default function PostAuthorMood({
-  name,
-  uid,
-  hasPhoto,
-  profileMoodKey,
-  moodKey,
-  onMoodChange,
-}) {
-  const [isPickerOpen, setIsPickerOpen] = useState(false);
+// Takes the author's name, ID, hasPhoto (for the avatar) and current mood
+// key (or null). With no mood it shows "No mood set" and a link to the Mood
+// tab.
+export default function PostAuthorMood({ name, uid, hasPhoto, moodKey }) {
   const mood = findMood(moodKey);
 
-  // Opens or closes the list of moods.
-  function handleChangeMoodPress() {
-    setIsPickerOpen((isOpen) => !isOpen);
-  }
-
-  // Saves the picked mood for this post and closes the list.
-  function handleMoodPress(newMoodKey) {
-    onMoodChange(newMoodKey);
-    setIsPickerOpen(false);
-  }
-
   return (
-    <View>
-      <View style={styles.row}>
-        <Avatar
-          name={name}
-          uid={uid}
-          hasPhoto={hasPhoto}
-          moodKey={profileMoodKey}
-          size={48}
-        />
-        <View style={styles.details}>
-          <Text style={styles.name} numberOfLines={1}>
-            {name}
-          </Text>
-          <View style={styles.moodRow}>
-            <View
-              style={[
-                styles.moodTag,
-                {
-                  backgroundColor: mood
-                    ? mood.tintColor
-                    : COLORS.white,
-                },
-              ]}
-            >
-              <Text style={styles.moodTagText}>
-                {mood ? `${mood.emoji} feeling ${mood.key}` : "No mood"}
-              </Text>
-            </View>
-            <Text
-              style={styles.changeMood}
-              onPress={handleChangeMoodPress}
-              accessibilityRole="button"
-            >
-              {mood ? "Change mood" : "Add mood"}
+    <View style={styles.row}>
+      <Avatar
+        name={name}
+        uid={uid}
+        hasPhoto={hasPhoto}
+        moodKey={moodKey}
+        size={48}
+      />
+      <View style={styles.details}>
+        <Text style={styles.name} numberOfLines={1}>
+          {name}
+        </Text>
+        <View style={styles.moodRow}>
+          <View
+            style={[
+              styles.moodTag,
+              { backgroundColor: mood ? mood.tintColor : COLORS.white },
+            ]}
+          >
+            <Text style={styles.moodTagText}>
+              {mood ? `${mood.emoji} feeling ${mood.key}` : "No mood set"}
             </Text>
           </View>
+          {!mood && (
+            <Text
+              style={styles.setMood}
+              onPress={() => router.navigate("/mood")}
+              accessibilityRole="link"
+            >
+              Set your mood
+            </Text>
+          )}
         </View>
       </View>
-
-      {isPickerOpen && (
-        <View style={styles.options} role="radiogroup" aria-label="Mood">
-          {USER_MOODS.map((option) => (
-            <MoodOption
-              key={option.key}
-              mood={option}
-              isSelected={option.key === moodKey}
-              onPress={() => handleMoodPress(option.key)}
-            />
-          ))}
-          <MoodOption
-            mood={null}
-            isSelected={moodKey === null}
-            onPress={() => handleMoodPress(null)}
-          />
-        </View>
-      )}
     </View>
   );
 }
@@ -138,31 +76,11 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     color: COLORS.ink,
   },
-  changeMood: {
+  setMood: {
     marginLeft: 12,
     fontFamily: FONTS.semiBold,
     fontSize: 12,
     lineHeight: 16,
     color: COLORS.purple,
-  },
-  options: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    marginTop: 14,
-  },
-  option: {
-    height: 32,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-    borderWidth: 1.5,
-    borderColor: "transparent",
-    justifyContent: "center",
-  },
-  optionText: {
-    fontFamily: FONTS.semiBold,
-    fontSize: 13,
-    lineHeight: 18,
-    color: COLORS.ink,
   },
 });

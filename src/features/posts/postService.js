@@ -24,9 +24,10 @@ function createEmptyReactionCounts() {
 }
 
 // Creates a new post. Takes the author's profile (from useAuth), the post's
-// text, type and mood (a mood key or null), and the photo's base64 text (or
-// null for no photo). Returns the new post's ID.
-export async function createPost({ author, text, postType, mood, photoBase64 }) {
+// text and type, and the photo's base64 text (or null for no photo). The
+// post saves the author's current mood (firestore.rules checks it). Returns
+// the new post's ID.
+export async function createPost({ author, text, postType, photoBase64 }) {
   const postRef = doc(collection(db, "posts"));
   // The photo gets the same ID as its post.
   const photoRef = photoBase64 ? doc(db, "postImages", postRef.id) : null;
@@ -45,7 +46,7 @@ export async function createPost({ author, text, postType, mood, photoBase64 }) 
     authorId: author.uid,
     authorUsername: author.username,
     authorHasPhoto: author.hasPhoto,
-    authorMood: mood,
+    authorMood: author.mood ?? null,
     postType,
     text: text.trim(),
     imageId: photoRef ? photoRef.id : null,

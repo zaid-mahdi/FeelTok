@@ -97,10 +97,11 @@ service cloud.firestore {
     }
 
     // True if the new post is valid: written by the logged-in user, who is not
-    // blocked, with their real username and photo flag, a valid mood and type,
-    // text of up to 5,000 characters that isn't only spaces, and all counts at
-    // 0. A post with a photo must create the photo in the same step, with the
-    // post's ID as the photo's ID.
+    // blocked, with their real username, photo flag and current mood (so the
+    // mood when posting can't be made up), a valid type, text of up to 5,000
+    // characters that isn't only spaces, and all counts at 0. A post with a
+    // photo must create the photo in the same step, with the post's ID as the
+    // photo's ID.
     function isValidNewPost(postId) {
       let post = request.resource.data;
       let author = get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
@@ -112,6 +113,7 @@ service cloud.firestore {
         && post.authorUsername == author.username
         && post.authorHasPhoto == author.hasPhoto
         && isValidMood(post.authorMood)
+        && post.authorMood == author.mood
         && isValidPostType(post.postType)
         && post.text is string
         && post.text.size() <= 5000

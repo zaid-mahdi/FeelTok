@@ -70,7 +70,7 @@ There are two separate lists of six: the **moods** (happy, sad, angry, love, sur
 - Users can edit only their own display name, bio (up to 150 characters), photo flag and mood (one of the 6 user moods, or none). They can never change their own role, blocked status, username or join date, so nobody can make themselves an admin. The photo flag must say whether their profile photo really exists.
 - Anyone can read one profile photo. Users can save only their own (up to 300,000 characters of base64 text), together with turning their photo flag on. Profile photos can't be removed yet.
 - Nobody can delete profiles from the app yet, and nobody can change or delete usernames.
-- A logged-in user who is not blocked can create a post as themselves, with their real username, a valid type and mood, text that isn't empty (up to 5,000 characters) and all counts at 0.
+- A logged-in user who is not blocked can create a post as themselves, with their real username, a valid type, their current mood (so the mood when posting can't be made up), text that isn't empty (up to 5,000 characters) and all counts at 0.
 - A post photo can only be created together with its post, by its author, and must be small enough for one document.
 - Anyone, even logged out, can read posts and list them (the For You feed), and read one post photo at a time. Nobody can list all photos.
 - Anyone can read reactions. A logged-in user who is not blocked can set, switch or remove only their own reaction (one of the 6 moods), on any post including their own.
@@ -298,7 +298,7 @@ There are two separate lists of six: the **moods** (happy, sad, angry, love, sur
 
 ### Task 6 — Create post
 
-**What it does:** Tapping the Create tab opens the full-screen New post page from the designer's mockup. The user picks one of the 6 post types (required), writes up to 500 words (required) and can add one photo. The post's mood starts on the user's current mood. "Change mood" changes it for this post only, or clears it with "No mood". The Post button stays grey until a type is picked and some text is written. After posting, the page closes and Home opens.
+**What it does:** Tapping the Create tab opens the full-screen New post page from the designer's mockup. The user picks one of the 6 post types (required), writes up to 500 words (required) and can add one photo. The post's mood starts on the user's current mood. "Change mood" changes it for this post only, or clears it with "No mood". (Changed later: see "Post mood change" at the end. The post now always saves the current mood.) The Post button stays grey until a type is picked and some text is written. After posting, the page closes and Home opens.
 
 **Files:**
 - `app/new-post.js`: the New post page: the header with ✕ and the form. Logged-out users go to login
@@ -695,3 +695,27 @@ There are two separate lists of six: the **moods** (happy, sad, angry, love, sur
 - Share is look only (team decision).
 - Two moods on a post card (team decision 2026-11-25): the text always says the mood when posting ("felt sad when posting"), and the avatar ring shows the author's current mood everywhere. The feed reads each author's profile once per page for this (a few extra reads). If that fails, the ring shows the mood when posting.
 - The page is loaded once when opened; a change the user makes later shows after opening it again.
+
+### Post mood change (after Task 12)
+
+**What it does:** A post now always saves the mood the author is in when they post, so "felt sad when posting" is always true. The New post page no longer has "Change mood": it shows your current mood read-only ("😢 feeling sad"). With no mood set it shows "No mood set" and a "Set your mood" link that opens the Mood tab. To post with another mood, change your mood on the Mood tab first. (Team decision 2026-11-25: moods are set in one place only, the Mood tab.)
+
+**Files:**
+- `src/features/posts/PostAuthorMood.js`: now read-only: avatar, name and current mood, or "No mood set" with "Set your mood"
+- `src/features/posts/NewPostForm.js`: no own mood choice any more
+- `src/features/posts/postService.js`: `createPost` saves the author's current mood itself
+- `firestore.rules`: a new post's mood must equal the author's current mood
+
+**Firestore:** `createPost` writes `posts/{postId}.authorMood` from `users/{uid}.mood`. Existing posts don't change.
+
+**Firebase console steps:** publish the new `firestore.rules` in Firestore Database → Rules. No index is needed.
+
+**How to test:**
+1. Set your mood to sad on the Mood tab. Open New post: it shows "😢 feeling sad" and no "Change mood".
+2. Post something. The card says "felt sad when posting".
+3. Change your mood to happy and post again. The new card says "felt happy when posting"; the old one still says sad.
+4. With an account that never set a mood, New post shows "No mood set" and "Set your mood", which opens the Mood tab. Its posts have no "felt … when posting" line.
+
+**Notes / limits:**
+- A post can't have a mood other than your current one, and you can't pick "No mood" for one post.
+- If you change your mood on one phone and post from another in the same second, the post can be refused once; posting again works.
