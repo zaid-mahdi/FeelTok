@@ -14,6 +14,7 @@ import { friendlyError } from "../../utils/errors";
 import { formatPostTime } from "../../utils/time";
 import { useAuth } from "../auth/AuthContext";
 import Avatar from "../profile/Avatar";
+import { openUserProfile } from "../profile/openUserProfile";
 import ReactionButton from "../reactions/ReactionButton";
 import { applyReactionChange } from "../reactions/reactionCounts";
 import { setReaction } from "../reactions/reactionService";
@@ -35,14 +36,28 @@ function isLongText(text) {
   );
 }
 
+// Returns the mood the card's avatar shows: the author's current mood (from
+// your own live profile, the profile page's authorProfile, or the
+// authorCurrentMood loaded with the feed). The text under the name always
+// says the mood when posting. If the current mood couldn't be loaded, the
+// avatar shows the mood when posting too.
+function getAvatarMoodKey(post, authorProfile, ownProfile) {
+  if (ownProfile) return ownProfile.mood ?? null;
+  if (authorProfile) return authorProfile.mood ?? null;
+  if (post.authorCurrentMood !== undefined) return post.authorCurrentMood;
+  return post.authorMood;
+}
+
 // Takes a post from Firestore (with its id, and myReaction: the logged-in
 // user's reaction or null) and shows it as a card. Optional: isFullText shows
 // the whole text (the post page), commentCount replaces the post's count, and
 // onCommentPress replaces opening the post page (the post page uses it to put
-// the cursor in the comment box), and onDeleted is called after the user
-// deletes their own post.
+// the cursor in the comment box), onDeleted is called after the user deletes
+// their own post, and authorProfile (on profile pages) gives the author's
+// current mood for the avatar.
 export default function PostCard({
   post,
+  authorProfile = null,
   isFullText = false,
   commentCount = post.commentCount,
   onCommentPress,
@@ -58,6 +73,7 @@ export default function PostCard({
   const authorHasPhoto =
     isOwnPost && profile ? profile.hasPhoto : post.authorHasPhoto;
   const mood = findMood(post.authorMood);
+  const avatarMoodKey = getAvatarMoodKey(post, authorProfile, isOwnPost && profile);
   const isShortened = !isFullText && !isExpanded && isLongText(post.text);
 
   // The reaction and counts shown on screen. They change as soon as the user
@@ -143,19 +159,32 @@ export default function PostCard({
   return (
     <View style={[styles.card, isDeleting && styles.cardDeleting]}>
       <View style={styles.header}>
-        <Avatar
-          name={post.authorUsername}
-          uid={post.authorId}
-          hasPhoto={authorHasPhoto}
-          moodKey={post.authorMood}
-          size={50}
-          hasBadge
-        />
+        {/* The avatar and the username open the author's profile. */}
+        <Pressable
+          onPress={() => openUserProfile(post.authorId)}
+          accessibilityRole="link"
+          accessibilityLabel={`Open @${post.authorUsername}'s profile`}
+        >
+          <Avatar
+            name={post.authorUsername}
+            uid={post.authorId}
+            hasPhoto={authorHasPhoto}
+            moodKey={avatarMoodKey}
+            size={50}
+            hasBadge
+          />
+        </Pressable>
         <View style={styles.headerText}>
-          <Text style={styles.username} numberOfLines={1}>
+          <Text
+            style={styles.username}
+            numberOfLines={1}
+            onPress={() => openUserProfile(post.authorId)}
+          >
             @{post.authorUsername}
           </Text>
-          {mood && <Text style={styles.meta}>feeling {mood.key}</Text>}
+          {mood && (
+            <Text style={styles.meta}>felt {mood.key} when posting</Text>
+          )}
           <Text style={styles.meta}>{formatPostTime(post.createdAt)}</Text>
         </View>
         {isOwnPost && !isDeleting && <PostMenu onDeletePress={handleDeletePress} />}

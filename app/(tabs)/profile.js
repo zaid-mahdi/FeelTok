@@ -43,6 +43,7 @@ export default function ProfileScreen() {
         postType={selectedPostType}
         emptyMessage={getEmptyMessage(selectedPostType)}
         onListChanged={stats.reload}
+        authorProfile={profile}
         header={
           <ProfileHeader
             profile={profile}

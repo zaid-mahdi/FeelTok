@@ -3,20 +3,23 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { friendlyError } from "../../utils/errors";
 import { fetchMyReactions } from "../reactions/reactionService";
+import { addAuthorMoods } from "./authorMoods";
 import { fetchPostsPage } from "./postService";
 
 // Loads one page of posts (see fetchPostsPage for the filters). When uid is
 // given, each post also gets myReaction: that user's reaction to it, or null.
-async function fetchPageWithMyReactions(afterSnapshot, uid, filters) {
+// Lists of everyone's posts also get each author's current mood (profile
+// pages already have it, from the profile).
+async function fetchPageWithDetails(afterSnapshot, uid, filters) {
   const page = await fetchPostsPage(afterSnapshot, filters);
-  if (!uid) return page;
-  const myReactions = await fetchMyReactions(
-    page.posts.map((post) => post.id),
-    uid,
-  );
+  const postIds = page.posts.map((post) => post.id);
+  const [myReactions, posts] = await Promise.all([
+    uid ? fetchMyReactions(postIds, uid) : {},
+    filters.authorId ? page.posts : addAuthorMoods(page.posts),
+  ]);
   return {
     ...page,
-    posts: page.posts.map((post) => ({
+    posts: posts.map((post) => ({
       ...post,
       myReaction: myReactions[post.id] ?? null,
     })),
@@ -55,7 +58,7 @@ export default function usePaginatedPosts(
     isBusyRef.current = true;
     setErrorMessage(null);
     try {
-      const page = await fetchPageWithMyReactions(null, uid, {
+      const page = await fetchPageWithDetails(null, uid, {
         authorId,
         postType,
       });
@@ -92,7 +95,7 @@ export default function usePaginatedPosts(
     setIsLoadingMore(true);
     setErrorMessage(null);
     try {
-      const page = await fetchPageWithMyReactions(lastSnapshotRef.current, uid, {
+      const page = await fetchPageWithDetails(lastSnapshotRef.current, uid, {
         authorId,
         postType,
       });

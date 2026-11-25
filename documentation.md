@@ -25,6 +25,7 @@ So far, sign up, login and forgot password work and have their final design. Rol
 | `app/` | The screens. Each file is one page. |
 | `app/(tabs)/` | The 5 tabs: Home, Friend List, Create (opens the New post page), Mood, Profile |
 | `app/post/` | The post page: one post with its comments |
+| `app/user/` | Public profile pages: someone else's profile and posts |
 | `app/admin/` | The admin area: admin sign-in and dashboard (web only) |
 | `src/lib/` | Firebase setup |
 | `src/features/auth/` | Everything about sign up, login and passwords |
@@ -654,3 +655,43 @@ There are two separate lists of six: the **moods** (happy, sad, angry, love, sur
 - A mood can be changed but not cleared (there is no "No mood" option on this page).
 - Only the current mood is kept: no history (out of scope).
 - Accounts that set a mood before this change may have no saved time; then the "Updated" line is hidden.
+
+### Task 12 — Public profiles
+
+**What it does:** Tapping a username or avatar on a post card, on the post page or in the comments opens that person's profile. It uses the same design as the Profile tab, read-only: a back button, their @username, avatar with mood ring, name, mood pill (it can't be tapped), bio, the posts / friends / reactions numbers, and their posts with the post type chips, 10 at a time. There is no Edit profile, Invite friends or ☰. Anyone can open it, also when logged out. Opening your own profile goes to the Profile tab.
+
+**Files:**
+- `app/user/[uid].js`: the public profile page, with loading, error and "This user doesn't exist." states
+- `src/features/profile/ProfileHeader.js`: now also has a read-only look (`isOwnProfile` false): back button, no buttons, "Posts" instead of "My posts"
+- `src/features/profile/MoodPill.js`: can be read-only (no tap)
+- `src/features/profile/useUserProfile.js`: loads one user's profile
+- `src/features/profile/openUserProfile.js`: opens a user's profile page
+- `src/features/profile/profileService.js`: `fetchProfile` reads one profile
+- `src/features/posts/PostCard.js`, `src/features/comments/CommentItem.js`: the avatar and the name open the profile
+- `src/features/posts/PostCard.js`, `PostList.js`, `app/(tabs)/profile.js`: post cards say "felt sad when posting" (the mood when the post was written), and their avatar shows the author's current mood
+- `src/features/posts/authorMoods.js`, `usePaginatedPosts.js`, `usePost.js`: load the authors' current moods for the feed and the post page
+
+**Main functions / hooks / components:**
+- `fetchProfile`: reads one user's profile, or null if the user doesn't exist
+- `useUserProfile`: the profile for the page, with loading and error
+- `openUserProfile`: opens `/user/{uid}`
+- `ProfileHeader` with `isOwnProfile`: one design for your own and other people's profiles
+
+**Firestore:** reads `users/{uid}`, `profileImages/{uid}` and that user's `posts` (the same queries as "my posts").
+
+**Firebase console steps:** none. The rules already let anyone read profiles and posts, and the two indexes from Task 11 cover these lists.
+
+**How to test:**
+1. Logged out, on Home, tap someone's avatar or @username: their profile opens, with their posts only. There is no Edit profile, Invite friends or ☰, and the mood pill does nothing.
+2. Tap a post type chip: only that type shows. Tap the back button: you are back on Home.
+3. Log in, open a post page, tap a commenter's name or avatar: their profile opens.
+4. Tap your own avatar or name anywhere: the Profile tab opens.
+5. On someone's profile you can react to and open their posts, but there is no "•••" delete menu.
+6. A post written while sad says "felt sad when posting" everywhere, while its avatar ring shows the author's current mood (in the feed, on the post page and on profiles).
+
+**Notes / limits:**
+- "friends" shows 0 until Tasks 13 and 14.
+- The friend list will open profiles too, when it is built (Task 14).
+- Share is look only (team decision).
+- Two moods on a post card (team decision 2026-11-25): the text always says the mood when posting ("felt sad when posting"), and the avatar ring shows the author's current mood everywhere. The feed reads each author's profile once per page for this (a few extra reads). If that fails, the ring shows the mood when posting.
+- The page is loaded once when opened; a change the user makes later shows after opening it again.

@@ -31,7 +31,9 @@ function RetryLink({ onPress }) {
 // Takes authorId (only that user's posts; null for all posts), postType
 // (only that type; null for all types), the message shown when there are no
 // posts, an optional header shown above the posts (for example the profile),
-// and an optional onListChanged, called after a refresh or a deleted post.
+// an optional onListChanged, called after a refresh or a deleted post, and an
+// optional authorProfile (profile pages), so the avatars show the author's
+// current mood.
 // Loads the next page near the end of the list, refreshes when pulled down,
 // and refreshes when the page is opened again (for example after posting).
 export default function PostList({
@@ -40,6 +42,7 @@ export default function PostList({
   emptyMessage,
   header = null,
   onListChanged,
+  authorProfile = null,
 }) {
   const { user } = useAuth();
   const {
@@ -102,7 +105,11 @@ export default function PostList({
       data={posts}
       keyExtractor={(post) => post.id}
       renderItem={({ item }) => (
-        <PostCard post={item} onDeleted={handlePostDeleted} />
+        <PostCard
+          post={item}
+          authorProfile={authorProfile}
+          onDeleted={handlePostDeleted}
+        />
       )}
       ListHeaderComponent={header}
       ItemSeparatorComponent={() => <View style={styles.separator} />}

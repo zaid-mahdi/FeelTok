@@ -1,10 +1,13 @@
-// The top of the Profile tab, from the profile mockup: share and ☰ buttons
-// around @username, the avatar with name and mood, the bio, the 3 numbers,
-// Edit profile and Invite friends, then the "My posts" title and type chips.
+// The top of a profile, from the profile mockup: share and ☰ buttons around
+// @username, the avatar with name and mood, the bio, the 3 numbers, Edit
+// profile and Invite friends, then the posts title and type chips. Other
+// people's profiles (Task 12) use the same design, read-only: a back button
+// instead of ☰, no buttons, and the mood can't be changed.
 import { Image } from "expo-image";
 import { router } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import BackButton from "../../components/BackButton";
 import { COLORS } from "../../theme/colors";
 import { FONTS } from "../../theme/fonts";
 import PostTypeFilter from "../posts/PostTypeFilter";
@@ -27,11 +30,15 @@ function RoundIconButton({ icon, accessibilityLabel, onPress }) {
   );
 }
 
-// Takes the profile, the numbers ({ postCount, reactionCount }; friends come
-// with the friends tasks), the picked post type (null for All), and functions
-// for picking a post type, opening Edit profile and opening Account settings.
+// Takes the profile, isOwnProfile (false for someone else's profile), the
+// numbers ({ postCount, reactionCount }; friends come with the friends
+// tasks), the picked post type (null for All), and functions for picking a
+// post type, going back (other people's profiles), opening Edit profile and
+// opening Account settings (your own profile).
 export default function ProfileHeader({
   profile,
+  isOwnProfile = true,
+  onBackPress,
   stats,
   selectedPostType,
   onSelectPostType,
@@ -47,20 +54,31 @@ export default function ProfileHeader({
   return (
     <View>
       <View style={[styles.profileSection, { paddingTop: insets.top + 12 }]}>
+        {/* Share is only for the look (team decision): it does nothing. */}
         <View style={styles.topBar}>
-          {/* Share is only for the look (team decision): it does nothing. */}
-          <RoundIconButton
-            icon={require("../../../assets/images/icon-share-dark.svg")}
-            accessibilityLabel="Share profile"
-          />
+          {isOwnProfile ? (
+            <RoundIconButton
+              icon={require("../../../assets/images/icon-share-dark.svg")}
+              accessibilityLabel="Share profile"
+            />
+          ) : (
+            <BackButton onPress={onBackPress} />
+          )}
           <Text style={styles.topUsername} numberOfLines={1}>
             @{profile.username}
           </Text>
-          <RoundIconButton
-            icon={require("../../../assets/images/icon-menu.svg")}
-            accessibilityLabel="Account settings"
-            onPress={onSettingsPress}
-          />
+          {isOwnProfile ? (
+            <RoundIconButton
+              icon={require("../../../assets/images/icon-menu.svg")}
+              accessibilityLabel="Account settings"
+              onPress={onSettingsPress}
+            />
+          ) : (
+            <RoundIconButton
+              icon={require("../../../assets/images/icon-share-dark.svg")}
+              accessibilityLabel="Share profile"
+            />
+          )}
         </View>
 
         <View style={styles.identityRow}>
@@ -78,7 +96,7 @@ export default function ProfileHeader({
             </Text>
             <MoodPill
               moodKey={profile.mood}
-              onPress={() => router.navigate("/mood")}
+              onPress={isOwnProfile ? () => router.navigate("/mood") : undefined}
             />
           </View>
         </View>
@@ -93,37 +111,41 @@ export default function ProfileHeader({
           />
         </View>
 
-        <View style={styles.buttonRow}>
-          <Pressable
-            onPress={onEditProfilePress}
-            accessibilityRole="button"
-            accessibilityLabel="Edit profile"
-            style={({ pressed }) => [
-              styles.button,
-              styles.editButton,
-              pressed && styles.editButtonPressed,
-            ]}
-          >
-            <Text style={styles.editButtonText}>Edit profile</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => router.navigate("/friends")}
-            accessibilityRole="button"
-            accessibilityLabel="Invite friends"
-            style={({ pressed }) => [
-              styles.button,
-              styles.inviteButton,
-              pressed && styles.inviteButtonPressed,
-            ]}
-          >
-            <Text style={styles.inviteButtonText}>Invite friends</Text>
-          </Pressable>
-        </View>
+        {isOwnProfile && (
+          <View style={styles.buttonRow}>
+            <Pressable
+              onPress={onEditProfilePress}
+              accessibilityRole="button"
+              accessibilityLabel="Edit profile"
+              style={({ pressed }) => [
+                styles.button,
+                styles.editButton,
+                pressed && styles.editButtonPressed,
+              ]}
+            >
+              <Text style={styles.editButtonText}>Edit profile</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => router.navigate("/friends")}
+              accessibilityRole="button"
+              accessibilityLabel="Invite friends"
+              style={({ pressed }) => [
+                styles.button,
+                styles.inviteButton,
+                pressed && styles.inviteButtonPressed,
+              ]}
+            >
+              <Text style={styles.inviteButtonText}>Invite friends</Text>
+            </Pressable>
+          </View>
+        )}
       </View>
 
       <View style={styles.postsSection}>
         <View style={styles.postsTitleRow}>
-          <Text style={styles.postsTitle}>My posts</Text>
+          <Text style={styles.postsTitle}>
+            {isOwnProfile ? "My posts" : "Posts"}
+          </Text>
           <Text style={styles.postsCount}>{postCountText}</Text>
         </View>
         <PostTypeFilter

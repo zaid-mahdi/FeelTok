@@ -5,7 +5,8 @@ import { findMood } from "../../constants/moods";
 import { COLORS } from "../../theme/colors";
 import { FONTS } from "../../theme/fonts";
 
-// Takes the mood key (or null) and a function called when it is tapped.
+// Takes the mood key (or null) and an optional function called when it is
+// tapped (without it the pill is read-only, as on other people's profiles).
 // Shows "No mood set" when there is no mood.
 export default function MoodPill({ moodKey, onPress }) {
   const mood = findMood(moodKey);
@@ -13,8 +14,9 @@ export default function MoodPill({ moodKey, onPress }) {
   return (
     <Pressable
       onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={`${text}. Change mood`}
+      disabled={!onPress}
+      accessibilityRole={onPress ? "button" : undefined}
+      accessibilityLabel={onPress ? `${text}. Change mood` : text}
       style={[
         styles.pill,
         { backgroundColor: mood ? mood.tintColor : COLORS.inputBackground },

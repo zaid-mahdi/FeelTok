@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { friendlyError } from "../../utils/errors";
 import { useAuth } from "../auth/AuthContext";
 import { fetchMyReactions } from "../reactions/reactionService";
+import { addAuthorMoods } from "./authorMoods";
 import { fetchPost } from "./postService";
 
 // Takes a post ID. Returns the post (with myReaction, or null when the post
@@ -17,10 +18,12 @@ export default function usePost(postId) {
   useEffect(() => {
     let isCurrent = true;
 
-    // Loads the post, then the user's reaction to it when logged in.
+    // Loads the post with its author's current mood, then the user's
+    // reaction to it when logged in.
     async function loadPost() {
       try {
-        const loadedPost = await fetchPost(postId);
+        const foundPost = await fetchPost(postId);
+        const [loadedPost] = foundPost ? await addAuthorMoods([foundPost]) : [null];
         if (loadedPost && uid) {
           const myReactions = await fetchMyReactions([postId], uid);
           loadedPost.myReaction = myReactions[postId] ?? null;

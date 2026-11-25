@@ -1,10 +1,11 @@
 // One comment, from the comment mockup: the avatar with the commenter's
 // current mood, then a light bubble with their name, the time and the text.
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { COLORS } from "../../theme/colors";
 import { FONTS } from "../../theme/fonts";
 import { formatPostTime } from "../../utils/time";
 import Avatar from "../profile/Avatar";
+import { openUserProfile } from "../profile/openUserProfile";
 
 // Takes the comment, the commenter's profile (for their current mood and
 // photo; null if it couldn't be read), and onDeletePress: when given, a small
@@ -12,17 +13,29 @@ import Avatar from "../profile/Avatar";
 export default function CommentItem({ comment, authorProfile, onDeletePress }) {
   return (
     <View style={styles.row}>
-      <Avatar
-        name={comment.authorUsername}
-        uid={comment.authorId}
-        hasPhoto={authorProfile?.hasPhoto ?? false}
-        moodKey={authorProfile?.mood ?? null}
-        size={40}
-        hasBadge
-      />
+      {/* The avatar and the name open the commenter's profile. */}
+      <Pressable
+        onPress={() => openUserProfile(comment.authorId)}
+        accessibilityRole="link"
+        accessibilityLabel={`Open @${comment.authorUsername}'s profile`}
+      >
+        <Avatar
+          name={comment.authorUsername}
+          uid={comment.authorId}
+          hasPhoto={authorProfile?.hasPhoto ?? false}
+          moodKey={authorProfile?.mood ?? null}
+          size={40}
+          hasBadge
+        />
+      </Pressable>
       <View style={styles.bubble}>
         <Text style={styles.meta}>
-          <Text style={styles.username}>{comment.authorUsername}</Text>
+          <Text
+            style={styles.username}
+            onPress={() => openUserProfile(comment.authorId)}
+          >
+            {comment.authorUsername}
+          </Text>
           {` · ${formatPostTime(comment.createdAt)}`}
           {onDeletePress && (
             <>

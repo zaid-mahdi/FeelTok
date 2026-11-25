@@ -39,6 +39,13 @@ export function subscribeToProfile(uid, onProfile, onError) {
   );
 }
 
+// Takes a user ID and returns their profile (with uid), or null if there is
+// no user with that ID.
+export async function fetchProfile(uid) {
+  const snapshot = await getDoc(doc(db, "users", uid));
+  return snapshot.exists() ? { uid, ...snapshot.data() } : null;
+}
+
 // Takes a list of user IDs and returns their profiles: an object of user ID →
 // profile. Users without a profile are left out.
 export async function fetchProfiles(uids) {
