@@ -1,9 +1,11 @@
 // Auth context: shares the logged-in user and their profile with every screen.
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, signOut } from "firebase/auth";
+import { router } from "expo-router";
 import { createContext, useContext, useEffect, useState } from "react";
 import { auth } from "../../lib/firebase";
 import { isWeb } from "../../utils/platform";
 import { subscribeToProfile } from "../profile/profileService";
+import { getIsLoggingIn, markJustBlocked } from "./blockedNotice";
 
 const AuthContext = createContext(null);
 
@@ -36,6 +38,17 @@ export function AuthProvider({ children }) {
       uid,
       (profile, isFromServer) => {
         if (isWeb && !isFromServer) return;
+        // A user an admin blocks while they are logged in is logged out at
+        // once and sent to the login page, which says why. (When they try
+        // to log in, logIn() refuses and the form says it.)
+        if (profile?.banned && isFromServer) {
+          signOut(auth);
+          if (!getIsLoggingIn()) {
+            markJustBlocked();
+            router.replace("/login");
+          }
+          return;
+        }
         setProfileState({ uid, profile, error: null });
       },
       (error) => setProfileState({ uid, profile: null, error }),

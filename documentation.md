@@ -27,7 +27,7 @@ So far, sign up, login and forgot password work and have their final design. Rol
 | `app/post/` | The post page: one post with its comments |
 | `app/user/` | Public profile pages: someone else's profile and posts |
 | `app/chat/` | The chat page: messages with one friend |
-| `app/admin/` | The admin area: admin sign-in and dashboard (web only) |
+| `app/admin/` | The admin area (web only): sign-in and dashboard (`index.js`), the Users table (`users.js`) and one user's page (`user/[uid].js`) |
 | `src/lib/` | Firebase setup |
 | `src/features/auth/` | Everything about sign up, login and passwords |
 | `src/features/profile/` | Usernames, user profiles, the avatar (photo or initials), profile photo, bio and current mood |
@@ -37,7 +37,7 @@ So far, sign up, login and forgot password work and have their final design. Rol
 | `src/features/friends/` | Friends: invite codes, adding and removing friends, the friend list and the Friends page parts |
 | `src/features/chat/` | Chat between two friends: the messages, the chat header and their Firestore calls |
 | `src/features/settings/` | Account settings: change username, email and password, log out, delete account |
-| `src/features/admin/` | The admin sign-in page |
+| `src/features/admin/` | The admin sign-in page and the admin dashboard: sidebar frame, stats, tables, user card, post cards and their Firestore calls |
 | `src/components/` | Small pieces shared by many screens |
 | `src/constants/` | Fixed lists: the 6 user moods and the 6 post types (two separate lists) |
 | `src/theme/` | Colours and fonts |
@@ -86,6 +86,8 @@ There are two separate lists of six: the **moods** (happy, sad, angry, love, sur
 - Anyone can read comments. A logged-in user who is not blocked can add comments as themselves (up to 500 characters, not only spaces) and delete only their own. Deleting other people's comments is for admins (Task 17). Comments can't be edited.
 - Adding or deleting a comment must change the post's comment count by exactly 1 in the same step. The author may update only the copy of their username on their comments, to their real username.
 - A reaction must also store the user's own ID (`userId`).
+- Admins (role "admin", set by hand in the console) can list and count all users, block or unblock a user (only the `banned` field, never themselves or another admin), and delete any post (with its photo, comments and reactions) or any comment (with the post's count). Admins can't edit posts or change anyone's role.
+- A blocked user can't log in (the app logs them out), and the rules stop them from posting, commenting, reacting, adding friends and sending messages.
 - Anyone can list all comments or reactions across all posts at once (they are public anyway); the app uses it only to find a user's own.
 - Authors can delete their own posts, always together with the post's photo. When a post is deleted, its author may delete all its comments and reactions (also other people's) in the same step. Comments and reactions left over from a deleted post can be cleaned up by any logged-in user.
 - Posts and photos can't be edited.
@@ -932,3 +934,47 @@ There are two separate lists of six: the **moods** (happy, sad, angry, love, sur
 **Files:** `src/utils/time.js` (`formatPostedTime`), `src/features/posts/PostCard.js`.
 
 **How to test:** open Home: each card's time line starts with "Posted".
+
+### Task 17 — Admin dashboard (web) + block users
+
+**What it does:** Admins sign in at `/admin` in a browser and get the dashboard from the designer's mockups: a dark sidebar (Dashboard, Users, the admin's name and email, Log out). The **Dashboard** shows the total users, total posts and blocked users, and the 10 newest posts to moderate, each with Delete. **Users** shows all users in a table (name, @username, mood, number of posts, joined date, Active / Blocked, View), with a search box that filters the list. **View** opens one user: their details with **Block user** / **Unblock user**, and all their posts with their comments; the admin can delete any post or comment. Every delete and block asks first with the in-page pop-up. A blocked user is logged out at once and sees "This account has been blocked by an admin."; they can't log in until unblocked. Their posts stay unless the admin deletes them.
+
+**Files:**
+- `app/admin/index.js`: the sign-in page, or the dashboard for admins
+- `app/admin/users.js`: the Users page with search
+- `app/admin/user/[uid].js`: one user, Block / Unblock, their posts and comments with Delete
+- `src/features/admin/AdminShell.js`: the sidebar and page header shared by all admin pages
+- `src/features/admin/AdminDashboard.js`: the dashboard content
+- `src/features/admin/AdminOnly.js`: sends non-admins back to `/admin`
+- `src/features/admin/StatCard.js`, `RecentPostRow.js`, `UserTable.js`, `AdminUserCard.js`, `AdminPostCard.js`, `AdminMoodTag.js`, `AdminStatusBadge.js`, `AdminDeleteButton.js`: the parts of the pages
+- `src/features/admin/adminService.js`: counts, recent posts, all users, one user with posts and comments, block / unblock
+- `src/features/admin/useAdminData.js`: loads a page's data, with loading, error and reload
+- `src/features/auth/authService.js`, `AuthContext.js`, `LoginForm.js`, `blockedNotice.js`, `app/login.js`: blocked users can't log in and are logged out with a message
+- `src/features/reactions/reactionCounts.js`: `getTotalReactions`
+- `firestore.rules`, `src/theme/colors.js`, new admin icons
+
+**Main functions / hooks / components:**
+- `fetchAdminStats`: counts users, posts and blocked users (Firestore counts, nothing downloaded)
+- `fetchRecentPosts`, `fetchAllUsers`, `fetchUserWithPosts`: the data of the three pages
+- `setUserBlocked`: sets `banned` to true or false
+- `deletePost` (from Task 10) and `deleteComment` (from Task 9) are reused for deleting
+- `AdminShell`, `AdminOnly`, `useAdminData`: the shared frame, guard and loader
+
+**Firestore:** reads `users` (all), `posts`, `posts/*/comments`; writes `users.banned`; deletes posts (with photos, comments, reactions) and comments.
+
+**Firebase console steps:** publish the new `firestore.rules`. No index is needed. An admin account is made by hand: Firestore Database → Data → users → (their ID) → `role` = `admin`.
+
+**How to test (in a browser, admin account):**
+1. Open `/admin`, sign in. The dashboard shows the three numbers and the newest posts.
+2. Delete a post: the pop-up asks; after Delete it disappears and Total posts goes down.
+3. Users: the table lists everyone; type in the search box to filter.
+4. View a user: their details and posts with comments. Delete a comment: the post's count goes down.
+5. Block the user (logged in on a phone): their app logs out to the login page with "This account has been blocked by an admin." Logging in again shows the same message. The table shows "Blocked" and Blocked users goes up by 1.
+6. Unblock: they can log in again.
+7. Your own admin profile and other admins have no Block button. A normal user who opens `/admin/users` is sent back to `/admin`.
+
+**Notes / limits:**
+- No deleting users (team decision): blocking only. The admin decides whether to delete their posts and comments.
+- Admins don't see private chat messages.
+- The Users table and search load all users at once and count each user's posts (fine for an MVP with a small number of users).
+- The full name in the mockup is the display name (FeelTok has no separate full name).

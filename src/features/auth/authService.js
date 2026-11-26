@@ -7,9 +7,12 @@ import {
   signOut,
 } from "firebase/auth";
 import { auth } from "../../lib/firebase";
+import { ACCOUNT_BLOCKED_CODE, createAppError } from "../../utils/errors";
+import { setIsLoggingIn } from "./blockedNotice";
 import {
   createUserProfile,
   createUsernameTakenError,
+  fetchProfile,
   isUsernameFree,
 } from "../profile/profileService";
 
@@ -46,9 +49,20 @@ async function removeUnfinishedAccount(user) {
 }
 
 // Logs a user in with their email and password. Throws a Firebase error if
-// the login fails.
+// the login fails, or our "blocked" error (and logs out again) if an admin
+// blocked the account.
 export async function logIn(email, password) {
-  await signInWithEmailAndPassword(auth, email.trim(), password);
+  setIsLoggingIn(true);
+  try {
+    const { user } = await signInWithEmailAndPassword(auth, email.trim(), password);
+    const profile = await fetchProfile(user.uid);
+    if (profile?.banned) {
+      await logOut();
+      throw createAppError(ACCOUNT_BLOCKED_CODE);
+    }
+  } finally {
+    setIsLoggingIn(false);
+  }
 }
 
 // Sends a password reset link to the given email. Does nothing if no account

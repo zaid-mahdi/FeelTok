@@ -12,3 +12,8 @@ export function applyReactionChange(reactionCounts, oldMoodKey, newMoodKey) {
   if (newMoodKey) counts[newMoodKey] += 1;
   return counts;
 }
+
+// Takes a post's reaction counts and returns the total number of reactions.
+export function getTotalReactions(reactionCounts) {
+  return Object.values(reactionCounts ?? {}).reduce((sum, count) => sum + count, 0);
+}

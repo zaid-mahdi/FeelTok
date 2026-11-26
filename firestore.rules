@@ -27,6 +27,13 @@ service cloud.firestore {
       return value in ['happy', 'sad', 'angry', 'love', 'surprised', 'funny'];
     }
 
+    // True if the logged-in user is an admin (role "admin" on their profile,
+    // set by hand in the Firebase console).
+    function isAdmin() {
+      return request.auth != null
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
     // True if the logged-in user has a profile and is not blocked.
     function isNotBlocked() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.banned == false;
@@ -100,13 +107,20 @@ service cloud.firestore {
     // Users: anyone can read one public profile (not list them all). A new user
     // creates their own profile together with their username, and can later
     // edit only the safe fields of it. Users can delete their own profile
-    // (delete account).
+    // (delete account). Admins can list all users and block or unblock a
+    // user (only the banned field), but never themselves or another admin.
     match /users/{uid} {
       allow get: if true;
+      allow list: if isAdmin();
       allow create: if isCurrentUser(uid)
         && isNewProfile(request.resource.data)
         && getAfter(/databases/$(database)/documents/usernames/$(request.resource.data.username)).data.uid == uid;
-      allow update: if isCurrentUser(uid) && isValidOwnProfileUpdate();
+      allow update: if (isCurrentUser(uid) && isValidOwnProfileUpdate())
+        || (isAdmin()
+          && request.auth.uid != uid
+          && resource.data.role != 'admin'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['banned'])
+          && request.resource.data.banned is bool);
       allow delete: if isCurrentUser(uid);
     }
 
@@ -219,14 +233,15 @@ service cloud.firestore {
         && isPostCommentCountChanged(postId, 1);
     }
 
-    // True if the post is being deleted by its author in this same step, or
-    // is already gone. Then its comments and reactions (also other people's)
-    // can be deleted with it, so nothing is left behind.
+    // True if the post is being deleted by its author (or an admin) in this
+    // same step, or is already gone. Then its comments and reactions (also
+    // other people's) can be deleted with it, so nothing is left behind.
     function isPostDeletedWithIt(postId) {
       let postPath = /databases/$(database)/documents/posts/$(postId);
       return request.auth != null
         && (!exists(postPath)
-          || (get(postPath).data.authorId == request.auth.uid && !existsAfter(postPath)));
+          || ((get(postPath).data.authorId == request.auth.uid || isAdmin())
+            && !existsAfter(postPath)));
     }
 
     // Posts: anyone, even logged out, can read them (the For You feed). A
@@ -235,7 +250,8 @@ service cloud.firestore {
     // their own reaction (users can react to their own posts too), and the
     // comment count by 1, when they add or delete their own comment. Authors
     // can update the copies of their username and photo flag, and delete their
-    // own posts, together with the post's photo. Posts can't be edited.
+    // own posts, together with the post's photo; admins can delete any post
+    // the same way. Posts can't be edited, also not by admins.
     match /posts/{postId} {
       allow get, list: if true;
       allow create: if request.auth != null && isValidNewPost(postId);
@@ -244,16 +260,15 @@ service cloud.firestore {
           || (isNotBlocked()
             && (isValidReactionCountUpdate(postId) || isValidCommentCountUpdate())));
       allow delete: if request.auth != null
-        && resource.data.authorId == request.auth.uid
-        && isNotBlocked()
+        && ((resource.data.authorId == request.auth.uid && isNotBlocked()) || isAdmin())
         && (resource.data.imageId == null
           || !existsAfter(/databases/$(database)/documents/postImages/$(postId)));
 
       // Comments: anyone can read them. A logged-in user who isn't blocked can
-      // add comments as themselves and delete only their own (deleting other
-      // people's comments is for admins, Task 17), except when the whole post
-      // is deleted. Comments can't be edited; only the copy of the author's
-      // username changes, when they change their username.
+      // add comments as themselves and delete only their own; admins can
+      // delete any comment (Task 17), always with the post's count. All are
+      // deleted when the whole post is deleted. Comments can't be edited;
+      // only the copy of the author's username changes, when they change it.
       match /comments/{commentId} {
         allow get, list: if true;
         allow create: if request.auth != null
@@ -267,7 +282,8 @@ service cloud.firestore {
           || (request.auth != null
             && resource.data.authorId == request.auth.uid
             && isNotBlocked()
-            && isPostCommentCountChanged(postId, -1));
+            && isPostCommentCountChanged(postId, -1))
+          || (isAdmin() && isPostCommentCountChanged(postId, -1));
       }
 
       // Reactions: one per user per post, saved under the user's ID (and with
@@ -428,11 +444,11 @@ service cloud.firestore {
     // Post photos: anyone can read one photo (not list them all). Created only
     // together with their post (same ID), by the post's author, as base64 text
     // of up to 900,000 characters, so it always fits in a Firestore document.
-    // Deleted only by their owner, together with their post.
+    // Deleted only by their owner or an admin, together with their post.
     match /postImages/{imageId} {
       allow get: if true;
       allow delete: if request.auth != null
-        && resource.data.ownerId == request.auth.uid
+        && (resource.data.ownerId == request.auth.uid || isAdmin())
         && !existsAfter(/databases/$(database)/documents/posts/$(imageId));
       allow create: if request.auth != null
         && hasExactly(request.resource.data, ['ownerId', 'data', 'createdAt'])

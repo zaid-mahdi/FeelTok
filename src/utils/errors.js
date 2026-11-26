@@ -14,6 +14,9 @@ export const INVITE_CODE_USED_CODE = "invite-code-used";
 export const OWN_INVITE_CODE_CODE = "own-invite-code";
 export const ALREADY_FRIENDS_CODE = "already-friends";
 
+// Our own error code for a user an admin has blocked.
+export const ACCOUNT_BLOCKED_CODE = "account-blocked";
+
 // Our own error code for a wrong current password in Account settings.
 export const WRONG_CURRENT_PASSWORD_CODE = "wrong-current-password";
 
@@ -48,6 +51,8 @@ const ERROR_MESSAGES = {
   [OWN_INVITE_CODE_CODE]:
     "That's your own code. Share it with a friend instead.",
   [ALREADY_FRIENDS_CODE]: "You're already friends with this person.",
+  [ACCOUNT_BLOCKED_CODE]:
+    "This account has been blocked by an admin. You can't log in with it.",
   [WRONG_CURRENT_PASSWORD_CODE]: "Your password is wrong. Please try again.",
   "auth/requires-recent-login":
     "For your safety, please log out and log in again, then try again.",

@@ -16,8 +16,10 @@ export default function LoginScreen() {
     router.push("/signup");
   }
 
-  if (isLoading) return <LoadingSpinner />;
-  if (user) return <Redirect href="/" />;
+  // The spinner shows only while the saved login is checked. During a new
+  // login the form stays, so it can show an error (like a blocked account).
+  if (isLoading && !user) return <LoadingSpinner />;
+  if (user && !isLoading) return <Redirect href="/" />;
 
   return (
     <AuthLayout

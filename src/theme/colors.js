@@ -25,6 +25,7 @@ export const COLORS = {
   panelBorder: "#3E376A", // tag outlines on Midnight Ink
   adminBadge: "#2A2650", // the ADMIN badge
   adminBadgeText: "#B9A6FF",
+  adminBackground: "#F5F2FD", // the light lavender page behind the admin dashboard
 
   // Light tints behind the post types, measured from the mockups
   lightPink: "#FFF1F6",

@@ -6,9 +6,10 @@ import ErrorText from "../../components/ErrorText";
 import PrimaryButton from "../../components/PrimaryButton";
 import { COLORS } from "../../theme/colors";
 import { FONTS } from "../../theme/fonts";
-import { friendlyError } from "../../utils/errors";
+import { ACCOUNT_BLOCKED_CODE, friendlyError } from "../../utils/errors";
 import { validateLogin } from "../../utils/validation";
 import { logIn } from "./authService";
+import { takeJustBlocked } from "./blockedNotice";
 import EmailField from "./EmailField";
 import PasswordField from "./PasswordField";
 
@@ -19,7 +20,10 @@ export default function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState(null);
+  // Starts with the "blocked" message when an admin just blocked the user.
+  const [errorMessage, setErrorMessage] = useState(() =>
+    takeJustBlocked() ? friendlyError({ code: ACCOUNT_BLOCKED_CODE }) : null,
+  );
 
   // Opens the forgot password page.
   function handleForgotPassword() {
