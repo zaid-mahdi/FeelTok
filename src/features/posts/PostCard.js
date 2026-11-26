@@ -11,7 +11,7 @@ import { findMood } from "../../constants/moods";
 import { COLORS } from "../../theme/colors";
 import { FONTS } from "../../theme/fonts";
 import { friendlyError } from "../../utils/errors";
-import { formatPostTime } from "../../utils/time";
+import { formatPostedTime } from "../../utils/time";
 import { useAuth } from "../auth/AuthContext";
 import Avatar from "../profile/Avatar";
 import { openUserProfile } from "../profile/openUserProfile";
@@ -188,7 +188,7 @@ export default function PostCard({
           {mood && (
             <Text style={styles.meta}>felt {mood.key} when posting</Text>
           )}
-          <Text style={styles.meta}>{formatPostTime(post.createdAt)}</Text>
+          <Text style={styles.meta}>{formatPostedTime(post.createdAt)}</Text>
         </View>
         {isOwnPost && !isDeleting && <PostMenu onDeletePress={handleDeletePress} />}
       </View>

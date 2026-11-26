@@ -924,3 +924,11 @@ There are two separate lists of six: the **moods** (happy, sad, angry, love, sur
 **Firestore:** writes `users/{uid}.mood` = null and `moodUpdatedAt`. No rules change (no mood was always allowed).
 
 **How to test:** set a mood, tap "Set to no mood": the card shows "No mood set", the link disappears, and your Profile says "No mood set".
+
+### Post time wording (after Task 16)
+
+**What it does:** The time on post cards now says what it is: "Posted just now", "Posted 5m ago", "Posted 2h ago", "Posted yesterday", "Posted 3d ago", or "Posted on 12 Nov" for older posts (team decision: "2h" alone was confusing next to the mood line). Comments and the friend list keep their short times.
+
+**Files:** `src/utils/time.js` (`formatPostedTime`), `src/features/posts/PostCard.js`.
+
+**How to test:** open Home: each card's time line starts with "Posted".

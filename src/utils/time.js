@@ -76,3 +76,14 @@ export function isSameDay(timestampA, timestampB) {
   const dateB = timestampB ? timestampB.toDate() : new Date();
   return dateA.toDateString() === dateB.toDateString();
 }
+
+// Takes a Firestore timestamp (or null while it is being saved) and returns
+// the time line on a post card: "Posted just now", "Posted 5m ago", "Posted
+// 2h ago", "Posted yesterday", "Posted 3d ago", or "Posted on 12 Nov".
+export function formatPostedTime(timestamp) {
+  const postTime = formatPostTime(timestamp);
+  if (postTime === "Just now") return "Posted just now";
+  if (postTime === "Yesterday") return "Posted yesterday";
+  if (/^\d+[mhd]$/.test(postTime)) return `Posted ${postTime} ago`;
+  return `Posted on ${postTime}`;
+}
