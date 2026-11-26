@@ -1,36 +1,27 @@
 // One friend in the friend list, from the Friends mockup: avatar with mood
 // ring and emoji, @username, their current mood with how long ago they set
-// it ("feeling love · 10m"), and the ⋮ menu.
+// it ("feeling love · 10m"), the message button (opens the chat) and the ⋮
+// menu.
+import { Image } from "expo-image";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { findMood } from "../../constants/moods";
 import { COLORS } from "../../theme/colors";
 import { FONTS } from "../../theme/fonts";
-import { formatShortTimeAgo } from "../../utils/time";
 import Avatar from "../profile/Avatar";
 import FriendMenu from "./FriendMenu";
-
-// Takes the friend's profile and returns the mood tag text, or null when
-// they have no mood.
-function getMoodText(profile) {
-  const mood = findMood(profile.mood);
-  if (!mood) return null;
-  if (!profile.moodUpdatedAt) return `feeling ${mood.key}`;
-  return `feeling ${mood.key} · ${formatShortTimeAgo(profile.moodUpdatedAt)}`;
-}
+import FriendMoodTag from "./FriendMoodTag";
 
 // Takes the friend ({ uid, profile }), isMenuOpen, and functions to open the
-// profile, open or close the menu, and remove the friend. Tapping the row
-// opens their profile.
+// profile, open the chat, open or close the menu, and remove the friend.
+// Tapping the row opens their profile.
 export default function FriendRow({
   friend,
   isMenuOpen,
   onOpenProfile,
+  onMessagePress,
   onMenuToggle,
   onRemovePress,
 }) {
   const { profile } = friend;
-  const mood = findMood(profile.mood);
-  const moodText = getMoodText(profile);
 
   return (
     <View style={[styles.row, isMenuOpen && styles.rowWithMenu]}>
@@ -52,17 +43,19 @@ export default function FriendRow({
           <Text style={styles.username} numberOfLines={1}>
             {profile.username}
           </Text>
-          <View
-            style={[
-              styles.moodTag,
-              { backgroundColor: mood ? mood.tintColor : COLORS.inputBackground },
-            ]}
-          >
-            <Text style={[styles.moodText, !mood && styles.noMoodText]} numberOfLines={1}>
-              {moodText ?? "No mood set"}
-            </Text>
-          </View>
+          <FriendMoodTag profile={profile} />
         </View>
+      </Pressable>
+      <Pressable
+        onPress={onMessagePress}
+        accessibilityRole="button"
+        accessibilityLabel={`Message @${profile.username}`}
+        style={({ pressed }) => [styles.messageButton, pressed && styles.messageButtonPressed]}
+      >
+        <Image
+          source={require("../../../assets/images/icon-chat-purple.svg")}
+          style={styles.messageIcon}
+        />
       </Pressable>
       <FriendMenu
         username={profile.username}
@@ -91,18 +84,15 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     color: COLORS.ink,
   },
-  moodTag: {
-    marginTop: 4,
-    height: 22,
-    paddingHorizontal: 8,
-    borderRadius: 11,
+  messageButton: {
+    width: 40,
+    height: 40,
+    marginRight: 4,
+    borderRadius: 20,
+    alignItems: "center",
     justifyContent: "center",
+    backgroundColor: COLORS.lightPurple,
   },
-  moodText: {
-    fontFamily: FONTS.semiBold,
-    fontSize: 12,
-    lineHeight: 16,
-    color: COLORS.ink,
-  },
-  noMoodText: { color: COLORS.grey },
+  messageButtonPressed: { opacity: 0.75 },
+  messageIcon: { width: 18, height: 18 },
 });

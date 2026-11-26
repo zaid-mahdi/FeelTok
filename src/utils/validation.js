@@ -103,3 +103,6 @@ export function validateInviteCode(code) {
   }
   return null;
 }
+
+// Chat messages: up to 500 characters (the same limit is in firestore.rules).
+export const MAX_MESSAGE_CHARACTERS = 500;

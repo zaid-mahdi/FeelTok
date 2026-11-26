@@ -50,3 +50,29 @@ export function formatShortTimeAgo(timestamp) {
   if (postTime === "Yesterday") return "yesterday";
   return postTime;
 }
+
+// Takes a Firestore timestamp (or null while it is being saved) and returns
+// the time under a chat message, like "9:12" or "14:05".
+export function formatMessageTime(timestamp) {
+  const date = timestamp ? timestamp.toDate() : new Date();
+  return `${date.getHours()}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
+// Takes a Firestore timestamp (or null) and returns the day label in a chat:
+// "Today", "Yesterday", or a date like "12 Nov".
+export function formatMessageDay(timestamp) {
+  const date = timestamp ? timestamp.toDate() : new Date();
+  const today = new Date();
+  const yesterday = new Date(today.getTime() - DAY);
+  if (date.toDateString() === today.toDateString()) return "Today";
+  if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
+  return date.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+}
+
+// Takes two Firestore timestamps (either can be null) and returns true if
+// they are on the same day.
+export function isSameDay(timestampA, timestampB) {
+  const dateA = timestampA ? timestampA.toDate() : new Date();
+  const dateB = timestampB ? timestampB.toDate() : new Date();
+  return dateA.toDateString() === dateB.toDateString();
+}

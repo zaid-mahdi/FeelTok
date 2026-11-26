@@ -1,5 +1,5 @@
 // The comment box from the comment mockup: "Say something kind..." and a
-// round purple send button.
+// round purple send button. The chat page reuses it with its own texts.
 import { Image } from "expo-image";
 import { useState } from "react";
 import {
@@ -17,8 +17,16 @@ import { MAX_COMMENT_CHARACTERS } from "../../utils/validation";
 // Takes a function called with the text when the user sends it. It returns a
 // promise of true when the comment was saved: then the box empties. If it
 // gives false, the text stays so the user can try again.
-// Takes inputRef so the page can put the cursor in the box.
-export default function CommentInput({ onSend, inputRef }) {
+// Takes inputRef so the page can put the cursor in the box. Optional:
+// placeholder, inputLabel and sendLabel (screen reader names), and maxLength.
+export default function CommentInput({
+  onSend,
+  inputRef,
+  placeholder = "Say something kind...",
+  inputLabel = "Write a comment",
+  sendLabel = "Send comment",
+  maxLength = MAX_COMMENT_CHARACTERS,
+}) {
   const [text, setText] = useState("");
   const [isFocused, setIsFocused] = useState(false);
   const [isSending, setIsSending] = useState(false);
@@ -45,17 +53,17 @@ export default function CommentInput({ onSend, inputRef }) {
         onFocus={() => setIsFocused(true)}
         onBlur={() => setIsFocused(false)}
         onSubmitEditing={handleSendPress}
-        placeholder="Say something kind..."
+        placeholder={placeholder}
         placeholderTextColor={COLORS.placeholder}
-        maxLength={MAX_COMMENT_CHARACTERS}
-        accessibilityLabel="Write a comment"
+        maxLength={maxLength}
+        accessibilityLabel={inputLabel}
         style={[styles.input, isFocused && styles.inputFocused]}
       />
       <Pressable
         onPress={handleSendPress}
         disabled={!canSend}
         accessibilityRole="button"
-        accessibilityLabel="Send comment"
+        accessibilityLabel={sendLabel}
         aria-disabled={!canSend}
         style={({ pressed }) => [
           styles.sendButton,

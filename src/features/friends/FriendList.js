@@ -7,12 +7,13 @@ import FriendRow from "./FriendRow";
 
 // Takes the friends to show, the friendship ID whose menu is open (or null),
 // a message for when the list is empty, and functions to open a profile,
-// open or close a menu, and remove a friend.
+// open a chat, open or close a menu, and remove a friend.
 export default function FriendList({
   friends,
   openMenuFriendshipId,
   emptyMessage,
   onOpenProfile,
+  onOpenChat,
   onMenuToggle,
   onRemovePress,
 }) {
@@ -32,6 +33,7 @@ export default function FriendList({
           friend={friend}
           isMenuOpen={openMenuFriendshipId === friend.friendshipId}
           onOpenProfile={() => onOpenProfile(friend)}
+          onMessagePress={() => onOpenChat(friend)}
           onMenuToggle={() => onMenuToggle(friend)}
           onRemovePress={() => onRemovePress(friend)}
         />

@@ -1,8 +1,9 @@
 // Friend List tab, from the Friends mockup: my friends with their current
 // moods (loaded when the tab opens, with pull to refresh and the refresh
-// button), a search box that filters them, the ⋮ menu (View profile, Remove
-// friend), and the Invite button that opens "Invite a friend".
-import { Redirect, useFocusEffect } from "expo-router";
+// button), a search box that filters them, the message button (opens the
+// chat), the ⋮ menu (View profile, Remove friend), and the Invite button that
+// opens "Invite a friend".
+import { Redirect, router, useFocusEffect } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import ConfirmDialog from "../../src/components/ConfirmDialog";
@@ -69,6 +70,12 @@ export default function FriendsScreen() {
   function handleOpenProfile(friend) {
     setOpenMenuFriendshipId(null);
     openUserProfile(friend.uid);
+  }
+
+  // Closes the menu and opens the chat with the friend.
+  function handleOpenChat(friend) {
+    setOpenMenuFriendshipId(null);
+    router.push(`/chat/${friend.uid}`);
   }
 
   // Closes the menu and opens the "Remove …?" pop-up.
@@ -139,6 +146,7 @@ export default function FriendsScreen() {
             openMenuFriendshipId={openMenuFriendshipId}
             emptyMessage={emptyMessage}
             onOpenProfile={handleOpenProfile}
+            onOpenChat={handleOpenChat}
             onMenuToggle={handleMenuToggle}
             onRemovePress={handleRemovePress}
           />

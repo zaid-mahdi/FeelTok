@@ -3,7 +3,6 @@
 // never have two friendships.
 import {
   collection,
-  deleteDoc,
   doc,
   getCountFromServer,
   getDocs,
@@ -11,6 +10,7 @@ import {
   runTransaction,
   serverTimestamp,
   where,
+  writeBatch,
 } from "firebase/firestore";
 import { db } from "../../lib/firebase";
 import {
@@ -106,8 +106,28 @@ export async function countFriends(uid) {
   return snapshot.data().count;
 }
 
-// Takes a friendship's ID and deletes it, so the two users are no longer
-// friends (for both of them).
+// A batch can hold at most 500 writes.
+const MAX_BATCH_WRITES = 500;
+
+// Takes a friendship's ID and deletes it with all the chat messages under
+// it, so the two users are no longer friends (for both of them) and nothing
+// is left behind.
 export async function removeFriend(friendshipId) {
-  await deleteDoc(doc(db, "friendships", friendshipId));
+  const friendshipRef = doc(db, "friendships", friendshipId);
+  const messagesSnapshot = await getDocs(collection(friendshipRef, "messages"));
+  const messageRefs = messagesSnapshot.docs.map((messageSnapshot) => messageSnapshot.ref);
+
+  // The first batch deletes the friendship together with the first messages
+  // (the rules only let messages be deleted with their friendship, or after
+  // it is gone). Long chats are finished in more batches of 500.
+  const firstBatch = writeBatch(db);
+  firstBatch.delete(friendshipRef);
+  messageRefs.slice(0, MAX_BATCH_WRITES - 1).forEach((ref) => firstBatch.delete(ref));
+  await firstBatch.commit();
+
+  for (let start = MAX_BATCH_WRITES - 1; start < messageRefs.length; start += MAX_BATCH_WRITES) {
+    const batch = writeBatch(db);
+    messageRefs.slice(start, start + MAX_BATCH_WRITES).forEach((ref) => batch.delete(ref));
+    await batch.commit();
+  }
 }

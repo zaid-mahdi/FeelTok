@@ -340,6 +340,13 @@ service cloud.firestore {
         && getAfter(codePath).data.usedBy == request.auth.uid;
     }
 
+    // True if the logged-in user is one of the two users in this friendship
+    // ID (the two user IDs joined with "_"). It works even after the
+    // friendship is deleted, so a removed chat can still be cleaned up.
+    function isChatMember(friendshipId) {
+      return request.auth != null && request.auth.uid in friendshipId.split('_');
+    }
+
     // Friendships: only the two friends can read theirs (and anyone logged in
     // can check that one doesn't exist yet, when adding a friend). Users can
     // list (and count) only their own friendships, with a query on members. A
@@ -356,6 +363,29 @@ service cloud.firestore {
       allow delete: if request.auth != null
         && isNotBlocked()
         && request.auth.uid in resource.data.members;
+
+      // Chat messages between the two friends (Task 15). The friendship ID is
+      // the two user IDs joined with "_", so it says who the chat belongs to.
+      // Only the two friends can read and send, and only while they are
+      // friends. A message is text of up to 500 characters (not only spaces),
+      // sent as yourself with the server's time, by a user who isn't blocked.
+      // Messages can't be edited. They are deleted only together with their
+      // friendship (remove friend), or after it is gone.
+      match /messages/{messageId} {
+        allow get, list: if isChatMember(friendshipId)
+          && exists(/databases/$(database)/documents/friendships/$(friendshipId));
+        allow create: if isChatMember(friendshipId)
+          && exists(/databases/$(database)/documents/friendships/$(friendshipId))
+          && isNotBlocked()
+          && hasExactly(request.resource.data, ['senderId', 'text', 'createdAt'])
+          && request.resource.data.senderId == request.auth.uid
+          && request.resource.data.text is string
+          && request.resource.data.text.size() <= 500
+          && request.resource.data.text.matches('(?s).*\\S.*')
+          && request.resource.data.createdAt == request.time;
+        allow delete: if isChatMember(friendshipId)
+          && !existsAfter(/databases/$(database)/documents/friendships/$(friendshipId));
+      }
     }
 
     // Post photos: anyone can read one photo (not list them all). Created only

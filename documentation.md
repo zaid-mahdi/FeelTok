@@ -6,7 +6,7 @@ This file describes the project as it is built today. It is updated after every 
 
 FeelTok is a small social app where emotions are central. Users will use it as a mobile app, and admins will use a dashboard in the browser. Both come from the same project.
 
-So far, sign up, login and forgot password work and have their final design. Roles work: the app works on phones and in the browser, and admins sign in at `/admin` in the browser. Users can create posts on the New post page, and everyone, even logged out, can read all posts in the For You feed on Home. Logged-in users react to posts with one of the 6 moods, and comment on the post page. Users can delete their own posts, have a profile page with photo, bio and current mood, change their mood on the Mood tab, and open other people's profiles. On the Friend List tab, users add friends with invite codes, see their friends' current moods, search their friends and remove friends. All other pages are placeholders. The team's designer is still working on those pages.
+So far, sign up, login and forgot password work and have their final design. Roles work: the app works on phones and in the browser, and admins sign in at `/admin` in the browser. Users can create posts on the New post page, and everyone, even logged out, can read all posts in the For You feed on Home. Logged-in users react to posts with one of the 6 moods, and comment on the post page. Users can delete their own posts, have a profile page with photo, bio and current mood, change their mood on the Mood tab, and open other people's profiles. On the Friend List tab, users add friends with invite codes, see their friends' current moods, search their friends, remove friends, and chat with a friend. All other pages are placeholders. The team's designer is still working on those pages.
 
 **Tech stack:** Expo (React Native) with Expo Router, JavaScript only, Firebase Authentication (email and password) and Cloud Firestore. We use the free Firebase plan.
 
@@ -26,6 +26,7 @@ So far, sign up, login and forgot password work and have their final design. Rol
 | `app/(tabs)/` | The 5 tabs: Home, Friend List, Create (opens the New post page), Mood, Profile |
 | `app/post/` | The post page: one post with its comments |
 | `app/user/` | Public profile pages: someone else's profile and posts |
+| `app/chat/` | The chat page: messages with one friend |
 | `app/admin/` | The admin area: admin sign-in and dashboard (web only) |
 | `src/lib/` | Firebase setup |
 | `src/features/auth/` | Everything about sign up, login and passwords |
@@ -34,6 +35,7 @@ So far, sign up, login and forgot password work and have their final design. Rol
 | `src/features/reactions/` | Reacting to posts with a mood: the React button and its Firestore calls |
 | `src/features/comments/` | Comments: the comment box, one comment, and their Firestore calls |
 | `src/features/friends/` | Friends: invite codes, adding and removing friends, the friend list and the Friends page parts |
+| `src/features/chat/` | Chat between two friends: the messages, the chat header and their Firestore calls |
 | `src/features/admin/` | The admin sign-in page |
 | `src/components/` | Small pieces shared by many screens |
 | `src/constants/` | Fixed lists: the 6 user moods and the 6 post types (two separate lists) |
@@ -46,7 +48,7 @@ So far, sign up, login and forgot password work and have their final design. Rol
 
 ## Data model
 
-User accounts (email and password) are in Firebase Authentication. Firestore has 7 collections, and posts have `reactions` and `comments` sub-collections:
+User accounts (email and password) are in Firebase Authentication. Firestore has 7 collections. Posts have `reactions` and `comments` sub-collections, and friendships have a `messages` sub-collection:
 
 | Collection | Document ID | Fields |
 |---|---|---|
@@ -58,6 +60,7 @@ User accounts (email and password) are in Firebase Authentication. Firestore has
 | `postImages` | The post's ID | `ownerId`, `data` (the photo as base64 text), `createdAt` |
 | `inviteCodes` | The code itself (6 characters, no I, O, 0 or 1) | `ownerId` (who made it), `usedBy` (the friend who used it, or null), `usedAt` (or null), `createdAt`. Each code works once |
 | `friendships` | The two user IDs, sorted and joined with "_" | `members` (the two user IDs, sorted), `inviteCode` (the code used to become friends), `createdAt`. The ID makes two friendships between the same people impossible |
+| `friendships/{friendshipId}/messages` | A new ID | `senderId`, `text` (up to 500 characters), `createdAt`. The chat between the two friends. Deleted together with the friendship |
 | `profileImages` | The user's ID | `data` (the profile photo: a 300 x 300 px JPEG as base64 text), `updatedAt`. One per user; a new photo replaces the old one |
 
 The username is the document ID, so two users can never have the same one. The email is not saved in Firestore.
@@ -86,6 +89,7 @@ There are two separate lists of six: the **moods** (happy, sad, angry, love, sur
 - A code can be used only once, never by its owner, and only in the same step as the friendship it creates. A friendship can only be created with a real, unused code, between the user and the code's owner, with the sorted IDs as its ID. So nobody can become friends with someone without their code.
 - Only the two friends can read their friendship. Users can list and count only their own friendships, so nobody can see who someone else is friends with.
 - Either friend can delete their friendship (remove friend), unless they are blocked. Friendships can't be edited, and codes can't be deleted.
+- Only the two friends can read and send chat messages, and only while they are friends. A message is sent as yourself, with the server's time, up to 500 characters and not only spaces. Blocked users can't send. Messages can't be edited, and are deleted only together with the friendship (or after it is gone).
 - Everything else is locked. Each task opens only what it needs.
 
 ---
@@ -815,3 +819,47 @@ There are two separate lists of six: the **moods** (happy, sad, angry, love, sur
 - Search only filters your loaded friends; there is no search for other users (out of scope).
 - Other people's profiles don't show a friend count, because friendships are private (team decision).
 - After removing a friend, you can become friends again with a new code.
+
+### Task 15 — Messaging between friends
+
+**What it does:** Task 15 used to be the Friends feed, which the team moved out of scope; it is now a chat between two friends, from the designer's mockups. Each friend on the Friend List has a round purple message button that opens the chat with them. The chat page shows the friend's avatar, username and current mood at the top, the messages (yours in purple on the right, theirs in white on the left, with the time under each and "Today" / "Yesterday" between days), and a "Write a kind message..." box with a send button. New messages show up at once on both phones while the chat is open. Removing a friend also deletes your chat with them.
+
+**Files:**
+- `app/chat/[uid].js`: the chat page, with loading, empty ("Say hi to @…"), error and "you can only chat with friends" states
+- `src/features/chat/chatService.js`: listens to the newest 50 messages and sends a message
+- `src/features/chat/useChat.js`: the live messages for the page, and sending
+- `src/features/chat/ChatHeader.js`: back button, the friend's avatar, username and mood
+- `src/features/chat/MessageItem.js`: one message bubble with its time, and the day label
+- `src/features/friends/FriendMoodTag.js`: the "feeling love · 10m" tag, shared by the friend list and the chat header
+- `src/features/friends/FriendRow.js`, `FriendList.js`, `app/(tabs)/friends.js`: the new message button
+- `src/features/friends/friendService.js`: removing a friend now deletes the chat messages too
+- `src/features/comments/CommentInput.js`: the comment box can now take other texts, so the chat reuses it
+- `src/utils/time.js`: the message time ("9:12") and the day label
+- `src/utils/validation.js`: the 500-character message limit
+- `firestore.rules`: rules for messages
+- New icon: `icon-chat-purple.svg`
+
+**Main functions / hooks / components:**
+- `subscribeToMessages`: listens live to the newest 50 messages of a chat
+- `sendMessage`: saves a message with the server's time
+- `removeFriend`: deletes the friendship and all its messages (in batches of 500)
+- `useChat`: the messages, loading, errors, "not friends" and send
+- `MessageItem` / `ChatHeader` / `FriendMoodTag`: the parts of the chat page
+
+**Firestore:** reads and writes `friendships/{friendshipId}/messages`, reads `users` (the friend's profile). The friendship ID is the two user IDs sorted and joined with "_", so the app finds the chat from the two IDs.
+
+**Firebase console steps:** publish the new `firestore.rules` in Firestore Database → Rules. No index is needed (messages are only sorted by time).
+
+**How to test:**
+1. On Friend List, each friend has a round purple message button. Tap it: the chat opens with their name and mood at the top, and "Say hi to @…" if you never chatted.
+2. Send a message: it shows on the right in purple with the time, and the box empties.
+3. On the other phone, open the chat with you: the message is there on the left. Reply: the reply appears on the first phone at once, without refreshing.
+4. The send button is light purple and does nothing while the box is empty.
+5. Remove the friend from the ⋮ menu: the chat is deleted. An open chat on the other phone changes to "You can only chat with friends."
+6. Open a chat with someone who isn't your friend (for example from an old link): "You can only chat with friends …", and there is no message box.
+
+**Notes / limits:**
+- Text only, up to 500 characters. No photos, no editing or deleting single messages, no unread dots or notifications (team decision, MVP).
+- Only the newest 50 messages are shown.
+- The newest messages sit at the bottom, next to the box, like other chat apps.
+- Deleting an account (Task 16) must also delete the user's chats.
