@@ -31,18 +31,17 @@ So far, sign up, login and forgot password work and have their final design. Rol
 | `src/lib/` | Firebase setup |
 | `src/features/auth/` | Everything about sign up, login and passwords |
 | `src/features/profile/` | Usernames, user profiles, the avatar (photo or initials), profile photo, bio and current mood |
-| `src/features/posts/` | Posts: the New post page, the post list (For You feed and my posts) and the post card |
+| `src/features/posts/` | Posts: their Firestore calls and hooks at the top, and three sub-folders: `feed/` (the Home header, the For You feed and the shared post list with its type chips), `card/` (the post card and its parts) and `newPost/` (the New post form and its parts) |
 | `src/features/reactions/` | Reacting to posts with a mood: the React button and its Firestore calls |
 | `src/features/comments/` | Comments: the comment box, one comment, and their Firestore calls |
 | `src/features/friends/` | Friends: invite codes, adding and removing friends, the friend list and the Friends page parts |
 | `src/features/chat/` | Chat between two friends: the messages, the chat header and their Firestore calls |
 | `src/features/settings/` | Account settings: change username, email and password, log out, delete account |
-| `src/features/admin/` | The admin sign-in page and the admin dashboard: sidebar frame, stats, tables, user card, post cards and their Firestore calls |
+| `src/features/admin/` | The admin area: its Firestore calls (`adminService.js`) and data loader (`useAdminData.js`) at the top, and five sub-folders: `signIn/` (the admin sign-in page), `layout/` (the sidebar frame and the admins-only guard), `dashboard/` (the dashboard, stat cards and recent posts), `users/` (the Users table, the user card and the user's post cards) and `parts/` (small pieces shared by the admin pages) |
 | `src/components/` | Small pieces shared by many screens |
 | `src/constants/` | Fixed lists: the 6 user moods and the 6 post types (two separate lists) |
 | `src/theme/` | Colours and fonts |
-| `src/utils/` | Helpers: error messages, text checks, photos, times and the web/mobile check |
-| `__tests__/` | Empty, for tests |
+| `src/utils/` | Helpers: error messages, input checks, photos, times and dates, text ("1 comment" / "3 comments") and the web/mobile check |
 | `assets/` | Images, icons and the logo |
 | `firestore.rules` | The database security rules |
 | `firestore.indexes.json` | A record of what was set up in Firestore Database → Indexes, written like the console screens (two composite indexes: a user's posts, newest first, with or without one post type; and two collection group settings: comments by authorId, reactions by userId) |
@@ -269,8 +268,8 @@ There are two separate lists of six: the **moods** (happy, sad, angry, love, sur
 - `src/lib/firebase.js`: uses the shared web/mobile check
 - `app/admin/_layout.js`: the admin area exists only on the web; the mobile app goes to Home
 - `app/admin/index.js`: the admin page: the sign-in form, or the dashboard placeholder for admins
-- `src/features/admin/AdminAuthLayout.js`: the admin sign-in layout from the designer (dark brand panel and white card)
-- `src/features/admin/AdminSignInForm.js`: the admin sign-in form
+- `src/features/admin/signIn/AdminAuthLayout.js`: the admin sign-in layout from the designer (dark brand panel and white card)
+- `src/features/admin/signIn/AdminSignInForm.js`: the admin sign-in form
 - `app/forgot-password.js`: its back button now returns to the page that opened it (login or the admin page)
 - `src/constants/moods.js` and `src/constants/reactions.js`: the 6 user moods and the 6 post reactions, kept separate (they replace `emotions.js`)
 - `src/theme/colors.js`: the colours of the dark admin panel
@@ -323,12 +322,12 @@ There are two separate lists of six: the **moods** (happy, sad, angry, love, sur
 - `app/(tabs)/create.js`: sends anyone who opens `/create` to the New post page
 - `app/(tabs)/mood.js`: the Mood tab, a placeholder until its design is ready
 - `src/features/posts/postService.js`: saves a post, and its photo, together
-- `src/features/posts/NewPostForm.js`: the form, its checks and the bar with the Post button
-- `src/features/posts/PostAuthorMood.js`: the avatar, name, the post's mood and "Change mood"
-- `src/features/posts/PostTypePicker.js`: the 6 post types in two columns
-- `src/features/posts/PostTextField.js`: the big text box
-- `src/features/posts/PostPhotoField.js`: "Add a photo", or the photo with a remove (✕) button
-- `src/features/posts/PostFormSection.js`: a section heading with its note ("Required", the word count)
+- `src/features/posts/newPost/NewPostForm.js`: the form, its checks and the bar with the Post button
+- `src/features/posts/card/PostAuthorMood.js`: the avatar, name, the post's mood and "Change mood"
+- `src/features/posts/newPost/PostTypePicker.js`: the 6 post types in two columns
+- `src/features/posts/newPost/PostTextField.js`: the big text box
+- `src/features/posts/newPost/PostPhotoField.js`: "Add a photo", or the photo with a remove (✕) button
+- `src/features/posts/newPost/PostFormSection.js`: a section heading with its note ("Required", the word count)
 - `src/features/profile/Avatar.js`: a round avatar with initials and a ring in the mood's colour
 - `src/components/CloseButton.js`: the round ✕ button
 - `src/components/PrimaryButton.js`: can now take extra spacing
@@ -338,7 +337,7 @@ There are two separate lists of six: the **moods** (happy, sad, angry, love, sur
 - `src/utils/images.js`: picks a photo, makes it smaller and turns it into text for Firestore
 - `src/utils/validation.js`: the 500-word limit and the post checks
 - `src/utils/errors.js`: messages for photos that are too big
-- `src/features/admin/AdminAuthLayout.js`: its tags now read from the post types list
+- `src/features/admin/signIn/AdminAuthLayout.js`: its tags now read from the post types list
 - `assets/images/`: the 6 post type icons, and the close and photo icons
 - `firestore.rules`: who can create posts and post photos
 
@@ -388,20 +387,20 @@ There are two separate lists of six: the **moods** (happy, sad, angry, love, sur
 **Files:**
 - `app/(tabs)/index.js`: Home: the header, the For You feed (Friends shows a placeholder until Task 15) and the "Posted" message
 - `app/new-post.js`: tells Home that a post was just saved
-- `src/features/posts/PostedMessage.js`: the "Posted! Your post is now in the feed." message, shown for 3 seconds
+- `src/features/posts/feed/PostedMessage.js`: the "Posted! Your post is now in the feed." message, shown for 3 seconds
 - `src/features/posts/postedNotice.js`: remembers that a post was just saved, so Home shows the message once
 - `src/theme/colors.js`: the light green behind the message
 - `app/(tabs)/_layout.js`: the designed tab bar; Home is public, the other tabs need a login
 - `app/(tabs)/friends.js`, `mood.js`: send logged-out users to login
 - `app/(tabs)/profile.js`: goes to Home after logging out
 - `src/components/AppTabBar.js`: the tab bar from the mockup
-- `src/features/posts/HomeHeader.js`: the logo and the For You / Friends switch
-- `src/features/posts/ForYouFeed.js`: the list: loading, empty and error states, pull to refresh, loading more
+- `src/features/posts/feed/HomeHeader.js`: the logo and the For You / Friends switch
+- `src/features/posts/feed/ForYouFeed.js`: the list: loading, empty and error states, pull to refresh, loading more
 - `src/features/posts/usePaginatedPosts.js`: loads the posts page by page
-- `src/features/posts/PostCard.js`: one post: author, mood, time, type, text with "see more", photo, counts, Share
-- `src/features/posts/PostTypeTag.js`: the small post type tag
-- `src/features/posts/PostPhoto.js`: loads and shows a post's photo
-- `src/features/posts/PostStats.js`: the top 3 reactions with the total, and the number of comments
+- `src/features/posts/card/PostCard.js`: one post: author, mood, time, type, text with "see more", photo, counts, Share
+- `src/features/posts/card/PostTypeTag.js`: the small post type tag
+- `src/features/posts/card/PostPhoto.js`: loads and shows a post's photo
+- `src/features/posts/card/PostStats.js`: the top 3 reactions with the total, and the number of comments
 - `src/features/posts/postService.js`: now also reads a page of posts and a post's photo
 - `src/features/profile/Avatar.js`: now has the mood emoji badge, and each user gets one of three circle colours
 - `src/utils/time.js`: shows when a post was made ("2h", "Yesterday")
@@ -450,9 +449,9 @@ There are two separate lists of six: the **moods** (happy, sad, angry, love, sur
 - `src/features/reactions/reactionService.js`: saves a reaction and its count together, and reads the user's reactions
 - `src/features/reactions/ReactionButton.js`: the React button and the row of 6 moods above it
 - `src/features/reactions/reactionCounts.js`: works out the new counts for the instant update on screen
-- `src/features/posts/PostCard.js`: shows the React button, updates the counts straight away and puts them back if saving fails
+- `src/features/posts/card/PostCard.js`: shows the React button, updates the counts straight away and puts them back if saving fails
 - `src/features/posts/usePaginatedPosts.js`: also loads the user's own reaction to each post on the page
-- `src/features/posts/ForYouFeed.js`: passes the logged-in user to the feed
+- `src/features/posts/feed/ForYouFeed.js`: passes the logged-in user to the feed
 - `src/constants/moods.js`: each mood now has a label ("Happy", "Love")
 - `firestore.rules`: who can react, and how the counts may change
 
@@ -496,8 +495,8 @@ There are two separate lists of six: the **moods** (happy, sad, angry, love, sur
 - `src/features/comments/CommentInput.js`: the comment box and send button
 - `src/features/comments/CommentItem.js`: one comment, with "Delete" on your own comments
 - `src/features/posts/usePost.js`: loads one post and your reaction to it
-- `src/features/posts/PostCard.js`: the Comment button; can show the whole text on the post page
-- `src/features/posts/PostStats.js`: "N comments" opens the post page
+- `src/features/posts/card/PostCard.js`: the Comment button; can show the whole text on the post page
+- `src/features/posts/card/PostStats.js`: "N comments" opens the post page
 - `src/features/posts/postService.js`: reads one post
 - `src/features/profile/profileService.js`: reads several profiles at once (for the commenters' moods)
 - `src/utils/confirm.js`: asks "Are you sure?" on phones and in the browser
@@ -540,8 +539,8 @@ There are two separate lists of six: the **moods** (happy, sad, angry, love, sur
 **What it does:** Your own posts have a "•••" button in the top corner (other people's posts don't). It opens a small menu with "Delete post", from the designer's mockup. After you confirm, the post is deleted together with its photo, all its comments and all its reactions, so nothing is left behind. In the feed the card disappears; on the post page you go back.
 
 **Files:**
-- `src/features/posts/PostMenu.js`: the "•••" button and its menu with "Delete post"
-- `src/features/posts/PostCard.js`: shows the menu only on your own posts, asks first and deletes
+- `src/features/posts/card/PostMenu.js`: the "•••" button and its menu with "Delete post"
+- `src/features/posts/card/PostCard.js`: shows the menu only on your own posts, asks first and deletes
 - `src/features/posts/postService.js`: `deletePost` deletes the post with everything that belongs to it
 - `src/features/posts/usePaginatedPosts.js`, `ForYouFeed.js`: take a deleted post off the feed
 - `app/post/[id].js`: goes back after the post is deleted
@@ -590,11 +589,11 @@ There are two separate lists of six: the **moods** (happy, sad, angry, love, sur
 - `src/features/profile/useProfilePhoto.js`: loads profile photos once and shows a new photo everywhere
 - `src/features/profile/Avatar.js`: now shows the user's photo when they have one (initials otherwise)
 - `src/features/profile/profileService.js`: saves the photo, bio and mood
-- `src/features/posts/PostTypeFilter.js`: the All / post type chips
-- `src/features/posts/PostList.js`: the list of post cards, shared by the For You feed and my posts
-- `src/features/posts/ForYouFeed.js`: now just the shared list with all posts
+- `src/features/posts/feed/PostTypeFilter.js`: the All / post type chips
+- `src/features/posts/feed/PostList.js`: the list of post cards, shared by the For You feed and my posts
+- `src/features/posts/feed/ForYouFeed.js`: now just the shared list with all posts
 - `src/features/posts/postService.js`, `usePaginatedPosts.js`: load one user's posts, optionally of one type, and count posts and reactions
-- `src/features/posts/PostCard.js`, `PostAuthorMood.js`, `NewPostForm.js`, `src/features/comments/CommentItem.js`, `app/post/[id].js`: pass the photo to the avatars
+- `src/features/posts/card/PostCard.js`, `PostAuthorMood.js`, `NewPostForm.js`, `src/features/comments/CommentItem.js`, `app/post/[id].js`: pass the photo to the avatars
 - `src/components/AppModal.js`: the shared pop-up card with a title and ✕
 - `src/utils/images.js`: makes a picked photo a small square for the profile
 - `src/theme/colors.js`: the dimmed colour behind pop-ups
@@ -684,8 +683,8 @@ There are two separate lists of six: the **moods** (happy, sad, angry, love, sur
 - `src/features/profile/useUserProfile.js`: loads one user's profile
 - `src/features/profile/openUserProfile.js`: opens a user's profile page
 - `src/features/profile/profileService.js`: `fetchProfile` reads one profile
-- `src/features/posts/PostCard.js`, `src/features/comments/CommentItem.js`: the avatar and the name open the profile
-- `src/features/posts/PostCard.js`, `PostList.js`, `app/(tabs)/profile.js`: post cards say "felt sad when posting" (the mood when the post was written), and their avatar shows the author's current mood
+- `src/features/posts/card/PostCard.js`, `src/features/comments/CommentItem.js`: the avatar and the name open the profile
+- `src/features/posts/card/PostCard.js`, `PostList.js`, `app/(tabs)/profile.js`: post cards say "felt sad when posting" (the mood when the post was written), and their avatar shows the author's current mood
 - `src/features/posts/authorMoods.js`, `usePaginatedPosts.js`, `usePost.js`: load the authors' current moods for the feed and the post page
 
 **Main functions / hooks / components:**
@@ -718,8 +717,8 @@ There are two separate lists of six: the **moods** (happy, sad, angry, love, sur
 **What it does:** A post now always saves the mood the author is in when they post, so "felt sad when posting" is always true. The New post page no longer has "Change mood": it shows your current mood read-only ("😢 feeling sad"). With no mood set it shows "No mood set" and a "Set your mood" link that opens the Mood tab. To post with another mood, change your mood on the Mood tab first. (Team decision 2026-11-25: moods are set in one place only, the Mood tab.)
 
 **Files:**
-- `src/features/posts/PostAuthorMood.js`: now read-only: avatar, name and current mood, or "No mood set" with "Set your mood"
-- `src/features/posts/NewPostForm.js`: no own mood choice any more
+- `src/features/posts/card/PostAuthorMood.js`: now read-only: avatar, name and current mood, or "No mood set" with "Set your mood"
+- `src/features/posts/newPost/NewPostForm.js`: no own mood choice any more
 - `src/features/posts/postService.js`: `createPost` saves the author's current mood itself
 - `firestore.rules`: a new post's mood must equal the author's current mood
 
@@ -931,7 +930,7 @@ There are two separate lists of six: the **moods** (happy, sad, angry, love, sur
 
 **What it does:** The time on post cards now says what it is: "Posted just now", "Posted 5m ago", "Posted 2h ago", "Posted yesterday", "Posted 3d ago", or "Posted on 12 Nov" for older posts (team decision: "2h" alone was confusing next to the mood line). Comments and the friend list keep their short times.
 
-**Files:** `src/utils/time.js` (`formatPostedTime`), `src/features/posts/PostCard.js`.
+**Files:** `src/utils/time.js` (`formatPostedTime`), `src/features/posts/card/PostCard.js`.
 
 **How to test:** open Home: each card's time line starts with "Posted".
 
@@ -943,10 +942,10 @@ There are two separate lists of six: the **moods** (happy, sad, angry, love, sur
 - `app/admin/index.js`: the sign-in page, or the dashboard for admins
 - `app/admin/users.js`: the Users page with search
 - `app/admin/user/[uid].js`: one user, Block / Unblock, their posts and comments with Delete
-- `src/features/admin/AdminShell.js`: the sidebar and page header shared by all admin pages
-- `src/features/admin/AdminDashboard.js`: the dashboard content
-- `src/features/admin/AdminOnly.js`: sends non-admins back to `/admin`
-- `src/features/admin/StatCard.js`, `RecentPostRow.js`, `UserTable.js`, `AdminUserCard.js`, `AdminPostCard.js`, `AdminMoodTag.js`, `AdminStatusBadge.js`, `AdminDeleteButton.js`: the parts of the pages
+- `src/features/admin/layout/AdminShell.js`: the sidebar and page header shared by all admin pages
+- `src/features/admin/dashboard/AdminDashboard.js`: the dashboard content
+- `src/features/admin/layout/AdminOnly.js`: sends non-admins back to `/admin`
+- `src/features/admin/dashboard/StatCard.js`, `RecentPostRow.js`, `UserTable.js`, `AdminUserCard.js`, `AdminPostCard.js`, `AdminMoodTag.js`, `AdminStatusBadge.js`, `AdminDeleteButton.js`: the parts of the pages
 - `src/features/admin/adminService.js`: counts, recent posts, all users, one user with posts and comments, block / unblock
 - `src/features/admin/useAdminData.js`: loads a page's data, with loading, error and reload
 - `src/features/auth/authService.js`, `AuthContext.js`, `LoginForm.js`, `blockedNotice.js`, `app/login.js`: blocked users can't log in and are logged out with a message
@@ -978,3 +977,35 @@ There are two separate lists of six: the **moods** (happy, sad, angry, love, sur
 - Admins don't see private chat messages.
 - The Users table and search load all users at once and count each user's posts (fine for an MVP with a small number of users).
 - The full name in the mockup is the display name (FeelTok has no separate full name).
+
+### Task 18 — Final polish, clean-up and README
+
+**What it does:** Nothing new for users: the app works exactly as before, with tidier files. The admin and posts folders were split into clear sub-folders, unused files and duplicated code were removed, every index in `firestore.indexes.json` now says which screen needs it, and the README was rewritten for anyone who opens the project (what FeelTok is, features, out of scope, how to run it, Firebase setup, file structure and acknowledgments).
+
+**Files:**
+- `src/features/admin/`: files moved into `signIn/`, `layout/`, `dashboard/`, `users/` and `parts/` (only the import paths changed)
+- `src/features/posts/`: files moved into `feed/`, `card/` and `newPost/` (only the import paths changed)
+- `src/utils/text.js` (new): `pluralize`, shared by the post times and the admin dashboard counts (it was written twice)
+- `src/utils/time.js`: now also has `formatJoinedDate` (it used to live inside the Users table component)
+- `firestore.indexes.json`: a description on the file and on each index and exemption
+- `README.md`: rewritten
+- Removed: `feeltok-icon.svg`, `icon-gift.svg`, `icon-phone.svg` (used nowhere), and the empty `__tests__/` and `src/components/.gitkeep` placeholders
+- Some helpers that are only used inside their own file are no longer exported (e.g. `generateInviteCode`, `validateUsername`, `POSTS_PER_PAGE`)
+
+**Firestore:** no change.
+
+**Firebase console steps:** none. The rules and indexes are the same as after Task 17. Check that *Firestore Database → Rules* matches `firestore.rules`, and that *Indexes* has the 2 composite indexes and the 2 exemptions listed in `firestore.indexes.json`.
+
+**How it was checked:**
+- All the rules tests from earlier tasks still pass (the only failures are old "not allowed yet" tests for things later tasks allowed on purpose), plus a new final check of what a logged-out user, a normal user, a blocked user and an admin can and can't do (35 checks, all pass).
+- The browser tests of Tasks 12 to 17 pass on the emulators with no errors in the browser console.
+- The iOS, Android and web builds pass.
+
+**How to test:**
+1. Use the app on a phone: sign up or log in, post (with and without a photo), react, comment, delete a post, change your mood, open profiles, add a friend, chat, open Account settings. Everything works as before.
+2. Open `/admin` in the browser: the dashboard, Users, a user page, delete and block all work as before.
+3. Read the README on GitHub: features, out of scope, how to run, Firebase setup, file structure, acknowledgments.
+
+**Notes / limits:**
+- JSON can't have real comments, so `firestore.indexes.json` uses "description" texts. The file is only a record of the console and is never deployed, so they do no harm.
+- No bugs were found in the screens during the checks; nothing else in the code changed.
