@@ -1,5 +1,6 @@
-// Mood tab, from the Mood mockup: my current mood, the 6 moods to pick from,
-// and a button that saves the picked one as my new current mood.
+// Mood tab, from the Mood mockup: my current mood (with "Set to no mood"),
+// the 6 moods to pick from, and a button that saves the picked one as my new
+// current mood.
 import { Redirect } from "expo-router";
 import { useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
@@ -32,6 +33,7 @@ export default function MoodScreen() {
   // current mood is shown as selected).
   const [pickedMoodKey, setPickedMoodKey] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
   const [errorMessage, setErrorMessage] = useState(null);
 
   // Saves the picked mood as the new current mood.
@@ -45,6 +47,20 @@ export default function MoodScreen() {
       setErrorMessage(friendlyError(error));
     } finally {
       setIsSaving(false);
+    }
+  }
+
+  // Clears the current mood (no mood), right away.
+  async function handleClearPress() {
+    setIsClearing(true);
+    setErrorMessage(null);
+    try {
+      await saveMood(user.uid, null);
+      setPickedMoodKey(null);
+    } catch (error) {
+      setErrorMessage(friendlyError(error));
+    } finally {
+      setIsClearing(false);
     }
   }
 
@@ -72,7 +88,12 @@ export default function MoodScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        <CurrentMood moodKey={currentMoodKey} updatedAt={profile.moodUpdatedAt} />
+        <CurrentMood
+          moodKey={currentMoodKey}
+          updatedAt={profile.moodUpdatedAt}
+          onClearPress={handleClearPress}
+          isClearing={isClearing}
+        />
         <Text style={styles.question}>How are you feeling?</Text>
         <MoodPicker
           selectedMoodKey={selectedMoodKey}

@@ -914,3 +914,13 @@ There are two separate lists of six: the **moods** (happy, sad, angry, love, sur
 - The hint says 6 characters (the team kept 6; the mockup says 8).
 - The email shown is the login email; it changes after the link is opened and you log in again.
 - If the new email already belongs to another account, Firebase sends no link but still answers "OK" (email enumeration protection: nobody can find out which emails have accounts). The app can't tell, so the success message says so.
+
+### Mood tab: "Set to no mood" (after Task 16)
+
+**What it does:** The "Right now you're feeling" card on the Mood tab has a "Set to no mood" link (from the updated Mood mockup). Tapping it clears your current mood straight away: your profile, avatar ring and friend list show "No mood set", and new posts have no mood until you pick one again.
+
+**Files:** `src/features/profile/CurrentMood.js` (the link), `app/(tabs)/mood.js` (saves no mood with `saveMood`).
+
+**Firestore:** writes `users/{uid}.mood` = null and `moodUpdatedAt`. No rules change (no mood was always allowed).
+
+**How to test:** set a mood, tap "Set to no mood": the card shows "No mood set", the link disappears, and your Profile says "No mood set".
