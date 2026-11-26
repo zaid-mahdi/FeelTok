@@ -6,7 +6,7 @@ This file describes the project as it is built today. It is updated after every 
 
 FeelTok is a small social app where emotions are central. Users will use it as a mobile app, and admins will use a dashboard in the browser. Both come from the same project.
 
-So far, sign up, login and forgot password work and have their final design. Roles work: the app works on phones and in the browser, and admins sign in at `/admin` in the browser. Users can create posts on the New post page, and everyone, even logged out, can read all posts in the For You feed on Home. Logged-in users react to posts with one of the 6 moods, and comment on the post page. Users can delete their own posts, have a profile page with photo, bio and current mood, change their mood on the Mood tab, and open other people's profiles. On the Friend List tab, users add friends with invite codes, see their friends' current moods, search their friends, remove friends, and chat with a friend. All other pages are placeholders. The team's designer is still working on those pages.
+So far, sign up, login and forgot password work and have their final design. Roles work: the app works on phones and in the browser, and admins sign in at `/admin` in the browser. Users can create posts on the New post page, and everyone, even logged out, can read all posts in the For You feed on Home. Logged-in users react to posts with one of the 6 moods, and comment on the post page. Users can delete their own posts, have a profile page with photo, bio and current mood, change their mood on the Mood tab, and open other people's profiles. On the Friend List tab, users add friends with invite codes, see their friends' current moods, search their friends, remove friends, and chat with a friend. In Account settings they change their username, email and password, log out, or delete their account with everything in it. All other pages are placeholders. The team's designer is still working on those pages.
 
 **Tech stack:** Expo (React Native) with Expo Router, JavaScript only, Firebase Authentication (email and password) and Cloud Firestore. We use the free Firebase plan.
 
@@ -36,15 +36,16 @@ So far, sign up, login and forgot password work and have their final design. Rol
 | `src/features/comments/` | Comments: the comment box, one comment, and their Firestore calls |
 | `src/features/friends/` | Friends: invite codes, adding and removing friends, the friend list and the Friends page parts |
 | `src/features/chat/` | Chat between two friends: the messages, the chat header and their Firestore calls |
+| `src/features/settings/` | Account settings: change username, email and password, log out, delete account |
 | `src/features/admin/` | The admin sign-in page |
 | `src/components/` | Small pieces shared by many screens |
 | `src/constants/` | Fixed lists: the 6 user moods and the 6 post types (two separate lists) |
 | `src/theme/` | Colours and fonts |
-| `src/utils/` | Helpers: error messages, text checks, photos, post times, confirm questions and the web/mobile check |
+| `src/utils/` | Helpers: error messages, text checks, photos, times and the web/mobile check |
 | `__tests__/` | Empty, for tests |
 | `assets/` | Images, icons and the logo |
 | `firestore.rules` | The database security rules |
-| `firestore.indexes.json` | A record of database indexes (two so far: a user's posts, newest first, with or without one post type) |
+| `firestore.indexes.json` | A record of what was set up in Firestore Database → Indexes, written like the console screens (two composite indexes: a user's posts, newest first, with or without one post type; and two collection group settings: comments by authorId, reactions by userId) |
 
 ## Data model
 
@@ -55,7 +56,7 @@ User accounts (email and password) are in Firebase Authentication. Firestore has
 | `users` | The user's ID | `username`, `displayName` (same as the username at sign up), `bio` (empty), `hasPhoto` (false), `mood` (null), `moodUpdatedAt` (null), `role` ("user"), `banned` (false), `createdAt` |
 | `usernames` | The username | `uid`: the ID of the user who has it |
 | `posts` | A new ID | `authorId`, `authorUsername`, `authorHasPhoto`, `authorMood` (one of the 6 moods or null), `postType` (one of the 6 post types), `text`, `imageId` (the post's own ID if it has a photo, or null), `reactionCounts` (0 for each of the 6 moods), `commentCount` (0), `createdAt` |
-| `posts/{postId}/reactions` | The ID of the user who reacted | `reaction`: one of the 6 moods. One per user per post |
+| `posts/{postId}/reactions` | The ID of the user who reacted | `reaction`: one of the 6 moods, and `userId` (the same ID, so all of a user's reactions can be found). One per user per post |
 | `posts/{postId}/comments` | A new ID | `authorId`, `authorUsername`, `text` (up to 500 characters), `createdAt`. The commenter's mood is not saved: their avatar reads their current mood from their profile |
 | `postImages` | The post's ID | `ownerId`, `data` (the photo as base64 text), `createdAt` |
 | `inviteCodes` | The code itself (6 characters, no I, O, 0 or 1) | `ownerId` (who made it), `usedBy` (the friend who used it, or null), `usedAt` (or null), `createdAt`. Each code works once |
@@ -73,6 +74,7 @@ There are two separate lists of six: the **moods** (happy, sad, angry, love, sur
 - A new user can create only their own profile and username, both together and only once.
 - A new profile must have the starting values, so nobody can sign up as an admin or with extra fields.
 - Anyone can read one user's profile, but nobody can list all profiles.
+- Users can change their username only by claiming the new one and giving up the old one in the same step. Users can delete their own profile, profile photo (only together with the profile), username and invite codes (delete account).
 - Users can edit only their own display name, bio (up to 150 characters), photo flag and mood (one of the 6 user moods, or none). They can never change their own role, blocked status, username or join date, so nobody can make themselves an admin. The photo flag must say whether their profile photo really exists.
 - Anyone can read one profile photo. Users can save only their own (up to 300,000 characters of base64 text), together with turning their photo flag on. Profile photos can't be removed yet.
 - Nobody can delete profiles from the app yet, and nobody can change or delete usernames.
@@ -82,7 +84,9 @@ There are two separate lists of six: the **moods** (happy, sad, angry, love, sur
 - Anyone can read reactions. A logged-in user who is not blocked can set, switch or remove only their own reaction (one of the 6 moods), on any post including their own.
 - The only changes to a post are its reaction counts (only by exactly what the user's own reaction adds or removes in the same step), its comment count (see below), and, by its author only, the copies of their username and photo flag, which must match their profile.
 - Anyone can read comments. A logged-in user who is not blocked can add comments as themselves (up to 500 characters, not only spaces) and delete only their own. Deleting other people's comments is for admins (Task 17). Comments can't be edited.
-- Adding or deleting a comment must change the post's comment count by exactly 1 in the same step.
+- Adding or deleting a comment must change the post's comment count by exactly 1 in the same step. The author may update only the copy of their username on their comments, to their real username.
+- A reaction must also store the user's own ID (`userId`).
+- Anyone can list all comments or reactions across all posts at once (they are public anyway); the app uses it only to find a user's own.
 - Authors can delete their own posts, always together with the post's photo. When a post is deleted, its author may delete all its comments and reactions (also other people's) in the same step. Comments and reactions left over from a deleted post can be cleaned up by any logged-in user.
 - Posts and photos can't be edited.
 - A logged-in user who is not blocked can make invite codes for themselves (6 characters from the code alphabet, unused). They can list only their own codes. Anyone logged in can read one code if they know it.
@@ -579,7 +583,7 @@ There are two separate lists of six: the **moods** (happy, sad, angry, love, sur
 - `src/features/profile/MoodPill.js`: the "Feeling happy" pill
 - `src/features/profile/ProfileStats.js`: the posts / friends / reactions boxes
 - `src/features/profile/EditProfileModal.js`: the Edit profile pop-up
-- `src/features/profile/AccountSettingsModal.js`: the Account settings pop-up
+- `src/features/profile/AccountSettingsModal.js`: the Account settings pop-up (moved to `src/features/settings/` in Task 16)
 - `src/features/profile/useProfileStats.js`: loads the post and reaction numbers
 - `src/features/profile/useProfilePhoto.js`: loads profile photos once and shows a new photo everywhere
 - `src/features/profile/Avatar.js`: now shows the user's photo when they have one (initials otherwise)
@@ -863,3 +867,50 @@ There are two separate lists of six: the **moods** (happy, sad, angry, love, sur
 - Only the newest 50 messages are shown.
 - The newest messages sit at the bottom, next to the box, like other chat apps.
 - Deleting an account (Task 16) must also delete the user's chats.
+
+### Task 16 — Settings
+
+**What it does:** The ☰ button on Profile opens Account settings, built from its mockup. You can change your username, email and new password, and one "Save changes" button saves them all. Changing the email or password needs your current password (a "Current password" field appears for it; not in the mockup, Firebase needs it). A new email only takes effect after you open the link sent to it. "Log out" logs you out. "Delete account" opens a pink box: type your password and tap Delete account, and everything you ever made is deleted, as if the account never existed. Also in this task: deleting a comment uses the same pop-up as deleting a post, and the Remove friend text no longer mentions a Friends feed.
+
+**Files:**
+- `src/features/settings/AccountSettingsModal.js`: the Account settings pop-up (moved here from `profile/`)
+- `src/features/settings/DeleteAccountBox.js`: the "Delete your account?" box
+- `src/features/settings/accountService.js`: change username, email and password; delete the account and everything in it
+- `src/features/reactions/reactionService.js`: reactions now also save `userId`
+- `src/features/posts/postService.js`: `fetchAllPostsByAuthor`
+- `src/features/friends/friendService.js`, `inviteCodeService.js`: list your friendships, delete your codes
+- `app/post/[id].js`: deleting a comment uses the "Delete this comment?" pop-up
+- `app/(tabs)/friends.js`: new Remove friend text
+- `app/(tabs)/profile.js`: opens the moved pop-up
+- `src/utils/validation.js`, `src/utils/errors.js`, `src/theme/colors.js`: the settings checks, "Your password is wrong", the pink box border
+- Removed: `src/utils/confirm.js` (nothing uses it any more)
+- `firestore.rules`, `firestore.indexes.json`
+
+**Main functions / hooks / components:**
+- `changeUsername`: in one transaction claims the new username, gives up the old one and updates the profile; then updates the username copy on all your posts and comments
+- `confirmCurrentPassword`: checks your current password with Firebase (needed before changing email or password, or deleting)
+- `changeEmail`: sends a confirmation link to the new email
+- `changePassword`: sets the new password
+- `deleteAccount`: deletes, in order: your posts (with their photos, comments and reactions), your comments and reactions on other posts (fixing their counts), your friendships (with the chats), your invite codes, then your profile photo, username and profile together, and last your login
+
+**Firestore:** writes `usernames`, `users`, `posts`, `posts/*/comments` (username copies); deletes from every collection when an account is deleted. Two collection group queries: all comments by `authorId`, all reactions by `userId`.
+
+**Firebase console steps:**
+1. Publish the new `firestore.rules`.
+2. Two single-field collection group indexes (Firestore Database → Indexes → Single field): `comments` / `authorId` and `reactions` / `userId`, both Ascending, query scope Collection group.
+3. Optional: Authentication → Templates → "Email address change" and "Email address verification" texts.
+
+**How to test:**
+1. Profile → ☰. Save is grey until you change something.
+2. Type a username someone has: "This username is already taken." Type a free one and save: "Your username was changed.", and your posts and comments show the new name.
+3. Type a new password: "Current password" appears. A wrong current password: "Your password is wrong." The right one: "Your password was changed." Log out and log in with the new password.
+4. Type a new email with your current password: "We sent a link to …". Open the email and click the link; log in with the new email.
+5. Tap "Delete account": the pink box opens; Delete account is grey until you type your password. A wrong password shows an error. The right one deletes everything and takes you to Home, logged out. In the console, nothing of the account is left, and other people's posts have the right comment and reaction counts. Logging in with that account fails.
+6. On a post page, tap Delete on your own comment: the "Delete this comment?" pop-up opens.
+
+**Notes / limits:**
+- Reactions made before Task 16 have no `userId`, so deleting an account can't find those old reactions (test data only; new reactions all have it).
+- If the internet drops in the middle of deleting an account, part of it may be left; deleting again finishes it.
+- The hint says 6 characters (the team kept 6; the mockup says 8).
+- The email shown is the login email; it changes after the link is opened and you log in again.
+- If the new email already belongs to another account, Firebase sends no link but still answers "OK" (email enumeration protection: nobody can find out which emails have accounts). The app can't tell, so the success message says so.

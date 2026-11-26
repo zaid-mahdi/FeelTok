@@ -1,22 +1,43 @@
 {
-  "indexes": [
+  "compositeIndexes": [
     {
-      "collectionGroup": "posts",
-      "queryScope": "COLLECTION",
+      "collectionId": "posts",
+      "queryScope": "Collection",
       "fields": [
-        { "fieldPath": "authorId", "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
+        { "fieldPath": "authorId", "order": "Ascending" },
+        { "fieldPath": "createdAt", "order": "Descending" }
       ]
     },
     {
-      "collectionGroup": "posts",
-      "queryScope": "COLLECTION",
+      "collectionId": "posts",
+      "queryScope": "Collection",
       "fields": [
-        { "fieldPath": "authorId", "order": "ASCENDING" },
-        { "fieldPath": "postType", "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
+        { "fieldPath": "authorId", "order": "Ascending" },
+        { "fieldPath": "postType", "order": "Ascending" },
+        { "fieldPath": "createdAt", "order": "Descending" }
       ]
     }
   ],
-  "fieldOverrides": []
+  "exemptions": [
+    {
+      "collectionId": "comments",
+      "fieldPath": "authorId",
+      "queryScope": "Collection group",
+      "indexes": {
+        "Ascending": "Enabled",
+        "Descending": "Disabled",
+        "Arrays": "Disabled"
+      }
+    },
+    {
+      "collectionId": "reactions",
+      "fieldPath": "userId",
+      "queryScope": "Collection group",
+      "indexes": {
+        "Ascending": "Enabled",
+        "Descending": "Disabled",
+        "Arrays": "Disabled"
+      }
+    }
+  ]
 }

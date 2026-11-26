@@ -106,3 +106,21 @@ export function validateInviteCode(code) {
 
 // Chat messages: up to 500 characters (the same limit is in firestore.rules).
 export const MAX_MESSAGE_CHARACTERS = 500;
+
+// Takes the Account settings changes (each value, or null when it didn't
+// change) and returns an error message, or null if they can be saved.
+// Firebase checks if the new email is a real address.
+export function validateAccountChanges({ username, email, newPassword, currentPassword }) {
+  if (username !== null) {
+    const usernameMessage = validateUsername(username);
+    if (usernameMessage) return usernameMessage;
+  }
+  if (email !== null && !email.trim()) return "Please enter your email.";
+  if (newPassword !== null && newPassword.length < MIN_PASSWORD_LENGTH) {
+    return `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`;
+  }
+  if (currentPassword !== null && !currentPassword) {
+    return "Enter your current password to change your email or password.";
+  }
+  return null;
+}

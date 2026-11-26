@@ -14,6 +14,9 @@ export const INVITE_CODE_USED_CODE = "invite-code-used";
 export const OWN_INVITE_CODE_CODE = "own-invite-code";
 export const ALREADY_FRIENDS_CODE = "already-friends";
 
+// Our own error code for a wrong current password in Account settings.
+export const WRONG_CURRENT_PASSWORD_CODE = "wrong-current-password";
+
 // Takes one of our own error codes and returns an error with that code, so
 // friendlyError() can show its message.
 export function createAppError(code) {
@@ -45,6 +48,9 @@ const ERROR_MESSAGES = {
   [OWN_INVITE_CODE_CODE]:
     "That's your own code. Share it with a friend instead.",
   [ALREADY_FRIENDS_CODE]: "You're already friends with this person.",
+  [WRONG_CURRENT_PASSWORD_CODE]: "Your password is wrong. Please try again.",
+  "auth/requires-recent-login":
+    "For your safety, please log out and log in again, then try again.",
   "permission-denied": "You don't have permission to do this.",
   unavailable: "No internet connection. Please check it and try again.",
 };

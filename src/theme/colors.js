@@ -39,6 +39,9 @@ export const COLORS = {
   // The pink glow under the Invite button on the Friends page
   pinkShadow: "rgba(255, 45, 120, 0.3)",
 
+  // The border of the "Delete your account?" box, measured from its mockup
+  dangerBorder: "#F5C4D4",
+
   // The dimmed page behind a modal (Midnight Ink, see-through)
   backdrop: "rgba(20, 18, 42, 0.45)",
 

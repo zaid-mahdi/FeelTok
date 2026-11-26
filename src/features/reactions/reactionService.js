@@ -1,6 +1,7 @@
 // Reaction service: the Firestore calls for reacting to posts with a mood.
-// Each user's reaction is posts/{postId}/reactions/{uid}, and the post keeps
-// a count per mood in reactionCounts.
+// Each user's reaction is posts/{postId}/reactions/{uid} (it also stores the
+// userId, so a user's reactions can be found), and the post keeps a count per
+// mood in reactionCounts.
 import { doc, getDoc, increment, runTransaction } from "firebase/firestore";
 import { db } from "../../lib/firebase";
 
@@ -31,7 +32,7 @@ export async function setReaction(postId, uid, newMoodKey) {
     transaction.update(postRef, countChanges);
 
     if (newMoodKey) {
-      transaction.set(reactionRef, { reaction: newMoodKey });
+      transaction.set(reactionRef, { reaction: newMoodKey, userId: uid });
     } else {
       transaction.delete(reactionRef);
     }

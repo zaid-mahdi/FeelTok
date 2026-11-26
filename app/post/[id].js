@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import BackButton from "../../src/components/BackButton";
+import ConfirmDialog from "../../src/components/ConfirmDialog";
 import EmptyState from "../../src/components/EmptyState";
 import ErrorText from "../../src/components/ErrorText";
 import LoadingSpinner from "../../src/components/LoadingSpinner";
@@ -23,7 +24,6 @@ import PostCard from "../../src/features/posts/PostCard";
 import usePost from "../../src/features/posts/usePost";
 import { COLORS } from "../../src/theme/colors";
 import { FONTS } from "../../src/theme/fonts";
-import { confirmAction } from "../../src/utils/confirm";
 import { friendlyError } from "../../src/utils/errors";
 
 // Goes back to the page before, or to Home when the post was opened directly.
@@ -40,6 +40,9 @@ export default function PostScreen() {
   const { post, isLoading: isPostLoading, errorMessage: postError } = usePost(id);
   const comments = useComments(id);
   const [actionError, setActionError] = useState(null);
+  // The comment in the "Delete this comment?" pop-up (null when it is closed).
+  const [commentIdToDelete, setCommentIdToDelete] = useState(null);
+  const [isDeletingComment, setIsDeletingComment] = useState(false);
   const commentInputRef = useRef(null);
 
   // Saves the comment. Returns true when it was saved, so the box empties.
@@ -54,19 +57,18 @@ export default function PostScreen() {
     }
   }
 
-  // Asks first, then deletes one of the user's own comments.
-  async function handleDeleteComment(commentId) {
-    const isConfirmed = await confirmAction(
-      "Delete this comment?",
-      "This can't be undone.",
-      "Delete",
-    );
-    if (!isConfirmed) return;
+  // Deletes the comment in the pop-up, then closes it. If it fails, the
+  // pop-up closes and the error shows under the comment box.
+  async function handleConfirmDeleteComment() {
+    setIsDeletingComment(true);
     setActionError(null);
     try {
-      await comments.remove(commentId);
+      await comments.remove(commentIdToDelete);
     } catch (error) {
       setActionError(friendlyError(error));
+    } finally {
+      setIsDeletingComment(false);
+      setCommentIdToDelete(null);
     }
   }
 
@@ -127,7 +129,7 @@ export default function PostScreen() {
               authorProfile={comments.profilesById[item.authorId] ?? null}
               onDeletePress={
                 user && item.authorId === user.uid
-                  ? () => handleDeleteComment(item.id)
+                  ? () => setCommentIdToDelete(item.id)
                   : undefined
               }
             />
@@ -160,6 +162,16 @@ export default function PostScreen() {
         </Text>
       </View>
       {content}
+      <ConfirmDialog
+        isVisible={commentIdToDelete !== null}
+        emoji="🗑️"
+        title="Delete this comment?"
+        message="This can't be undone."
+        confirmText="Delete"
+        isConfirming={isDeletingComment}
+        onConfirm={handleConfirmDeleteComment}
+        onCancel={() => setCommentIdToDelete(null)}
+      />
     </KeyboardAvoidingView>
   );
 }

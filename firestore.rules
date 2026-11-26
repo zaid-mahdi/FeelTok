@@ -61,9 +61,15 @@ service cloud.firestore {
     }
 
     // Usernames: anyone can check if one is taken. A new user claims one in
-    // the same step as their profile, so each user can only have one.
+    // the same step as their profile, so each user can only have one. When a
+    // user changes their username (or deletes their account), they give up
+    // their old one in the same step.
     match /usernames/{username} {
       allow get: if true;
+      allow delete: if request.auth != null
+        && resource.data.uid == request.auth.uid
+        && (!existsAfter(/databases/$(database)/documents/users/$(request.auth.uid))
+          || getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.username != username);
       allow create: if isValidUsername(username)
         && request.resource.data.keys().hasOnly(['uid'])
         && isCurrentUser(request.resource.data.uid)
@@ -71,13 +77,19 @@ service cloud.firestore {
     }
 
     // True if a user's change to their own profile only touches the fields
-    // they may edit, with valid values. role, banned, username and createdAt
-    // can never be changed this way, so nobody can make themselves an admin.
-    // hasPhoto must say whether their profile photo exists after this step.
+    // they may edit, with valid values. role, banned and createdAt can never
+    // be changed this way, so nobody can make themselves an admin.
+    // hasPhoto must say whether their profile photo exists after this step. A
+    // new username must be valid and claimed in the same step, and the old
+    // one given up.
     function isValidOwnProfileUpdate() {
       let profile = request.resource.data;
       return profile.diff(resource.data).affectedKeys()
-          .hasOnly(['displayName', 'bio', 'hasPhoto', 'mood', 'moodUpdatedAt'])
+          .hasOnly(['displayName', 'bio', 'hasPhoto', 'mood', 'moodUpdatedAt', 'username'])
+        && (profile.username == resource.data.username
+          || (isValidUsername(profile.username)
+            && getAfter(/databases/$(database)/documents/usernames/$(profile.username)).data.uid == request.auth.uid
+            && !existsAfter(/databases/$(database)/documents/usernames/$(resource.data.username))))
         && profile.displayName is string
         && profile.bio is string && profile.bio.size() <= 150
         && profile.hasPhoto == existsAfter(/databases/$(database)/documents/profileImages/$(request.auth.uid))
@@ -87,13 +99,15 @@ service cloud.firestore {
 
     // Users: anyone can read one public profile (not list them all). A new user
     // creates their own profile together with their username, and can later
-    // edit only the safe fields of it.
+    // edit only the safe fields of it. Users can delete their own profile
+    // (delete account).
     match /users/{uid} {
       allow get: if true;
       allow create: if isCurrentUser(uid)
         && isNewProfile(request.resource.data)
         && getAfter(/databases/$(database)/documents/usernames/$(request.resource.data.username)).data.uid == uid;
       allow update: if isCurrentUser(uid) && isValidOwnProfileUpdate();
+      allow delete: if isCurrentUser(uid);
     }
 
     // True if the new post is valid: written by the logged-in user, who is not
@@ -238,12 +252,17 @@ service cloud.firestore {
       // Comments: anyone can read them. A logged-in user who isn't blocked can
       // add comments as themselves and delete only their own (deleting other
       // people's comments is for admins, Task 17), except when the whole post
-      // is deleted. Comments can't be edited.
+      // is deleted. Comments can't be edited; only the copy of the author's
+      // username changes, when they change their username.
       match /comments/{commentId} {
         allow get, list: if true;
         allow create: if request.auth != null
           && isNotBlocked()
           && isValidNewComment(postId);
+        allow update: if request.auth != null
+          && resource.data.authorId == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['authorUsername'])
+          && request.resource.data.authorUsername == getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.username;
         allow delete: if isPostDeletedWithIt(postId)
           || (request.auth != null
             && resource.data.authorId == request.auth.uid
@@ -251,15 +270,17 @@ service cloud.firestore {
             && isPostCommentCountChanged(postId, -1));
       }
 
-      // Reactions: one per user per post, saved under the user's ID. Anyone
-      // can read them. Users can set, switch or remove only their own, to one
-      // of the 6 moods, together with the post's count. All of a post's
-      // reactions are deleted with the post.
+      // Reactions: one per user per post, saved under the user's ID (and with
+      // userId, so a user's reactions can be found when they delete their
+      // account). Anyone can read them. Users can set, switch or remove only
+      // their own, to one of the 6 moods, together with the post's count. All
+      // of a post's reactions are deleted with the post.
       match /reactions/{uid} {
         allow get, list: if true;
         allow create, update: if isCurrentUser(uid)
           && isNotBlocked()
-          && hasExactly(request.resource.data, ['reaction'])
+          && hasExactly(request.resource.data, ['reaction', 'userId'])
+          && request.resource.data.userId == uid
           && isMood(request.resource.data.reaction)
           && isPostCountChanged(postId, request.resource.data.reaction, 1);
         allow delete: if isPostDeletedWithIt(postId)
@@ -272,9 +293,12 @@ service cloud.firestore {
     // Profile photos: anyone can read one photo (not list them all). Users
     // save only their own, under their user ID, as base64 text of up to
     // 300,000 characters, together with hasPhoto = true on their profile. A
-    // new photo replaces the old one.
+    // new photo replaces the old one. It is deleted only together with the
+    // profile (delete account).
     match /profileImages/{uid} {
       allow get: if true;
+      allow delete: if isCurrentUser(uid)
+        && !existsAfter(/databases/$(database)/documents/users/$(uid));
       allow create, update: if isCurrentUser(uid)
         && hasExactly(request.resource.data, ['data', 'updatedAt'])
         && request.resource.data.data is string
@@ -295,7 +319,10 @@ service cloud.firestore {
     // make codes for themselves and list only their own. Anyone logged in can
     // read one code if they know it. A code can be used once, never by its
     // owner, and only in the same step as the new friendship it creates.
+    // Owners can delete their own codes (delete account).
     match /inviteCodes/{code} {
+      allow delete: if request.auth != null
+        && resource.data.ownerId == request.auth.uid;
       allow get: if request.auth != null;
       allow list: if request.auth != null
         && resource.data.ownerId == request.auth.uid;
@@ -386,6 +413,16 @@ service cloud.firestore {
         allow delete: if isChatMember(friendshipId)
           && !existsAfter(/databases/$(database)/documents/friendships/$(friendshipId));
       }
+    }
+
+    // All comments and reactions, from every post at once (collection group
+    // queries). They are public anyway; the app uses this only to find a
+    // user's own comments and reactions (username change, delete account).
+    match /{path=**}/comments/{commentId} {
+      allow list: if true;
+    }
+    match /{path=**}/reactions/{reactionId} {
+      allow list: if true;
     }
 
     // Post photos: anyone can read one photo (not list them all). Created only

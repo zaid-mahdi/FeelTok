@@ -157,7 +157,7 @@ export default function FriendsScreen() {
         isVisible={friendToRemove !== null}
         emoji="😨"
         title={`Remove ${friendToRemove?.profile.username}?`}
-        message="You'll be removed from each other's friend lists and their posts will leave your Friends feed. You can add them again with a new invite code."
+        message="You'll be removed from each other's friend lists and your chat will be deleted. You can add them again with a new invite code."
         confirmText="Remove"
         isConfirming={isRemoving}
         onConfirm={handleConfirmRemove}

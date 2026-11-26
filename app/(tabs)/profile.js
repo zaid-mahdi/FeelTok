@@ -9,7 +9,7 @@ import LoadingSpinner from "../../src/components/LoadingSpinner";
 import { POST_TYPES } from "../../src/constants/postTypes";
 import { useAuth } from "../../src/features/auth/AuthContext";
 import PostList from "../../src/features/posts/PostList";
-import AccountSettingsModal from "../../src/features/profile/AccountSettingsModal";
+import AccountSettingsModal from "../../src/features/settings/AccountSettingsModal";
 import EditProfileModal from "../../src/features/profile/EditProfileModal";
 import ProfileHeader from "../../src/features/profile/ProfileHeader";
 import useProfileStats from "../../src/features/profile/useProfileStats";

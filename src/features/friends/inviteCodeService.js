@@ -2,6 +2,7 @@
 // invite code. The code is the document ID in inviteCodes, so codes are unique.
 import {
   collection,
+  deleteDoc,
   doc,
   getDocs,
   query,
@@ -62,6 +63,15 @@ export async function createInviteCode(uid) {
     if (isSaved) return code;
   }
   throw new Error("Could not make a free invite code.");
+}
+
+// Takes a user ID and deletes all their invite codes (for deleting their
+// account).
+export async function deleteMyInviteCodes(uid) {
+  const snapshot = await getDocs(
+    query(collection(db, "inviteCodes"), where("ownerId", "==", uid)),
+  );
+  await Promise.all(snapshot.docs.map((codeSnapshot) => deleteDoc(codeSnapshot.ref)));
 }
 
 // Takes a user ID and returns their unused code, or makes a new one when

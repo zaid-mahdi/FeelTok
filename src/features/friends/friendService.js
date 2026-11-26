@@ -99,6 +99,13 @@ export async function fetchFriends(uid) {
     .sort((friendA, friendB) => getMoodTime(friendB) - getMoodTime(friendA));
 }
 
+// Takes the logged-in user's ID and returns the IDs of all their friendships
+// (for deleting their account).
+export async function fetchMyFriendshipIds(uid) {
+  const snapshot = await getDocs(getMyFriendshipsQuery(uid));
+  return snapshot.docs.map((friendshipSnapshot) => friendshipSnapshot.id);
+}
+
 // Takes the logged-in user's ID and returns how many friends they have. It
 // asks Firestore to count, so the friendships are not downloaded.
 export async function countFriends(uid) {

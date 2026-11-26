@@ -140,6 +140,15 @@ export async function deletePost(post) {
   }
 }
 
+// Takes a user ID and returns all their posts (each with its id), for
+// changing their username or deleting their account.
+export async function fetchAllPostsByAuthor(uid) {
+  const snapshot = await getDocs(
+    query(collection(db, "posts"), where("authorId", "==", uid)),
+  );
+  return snapshot.docs.map((postSnapshot) => ({ id: postSnapshot.id, ...postSnapshot.data() }));
+}
+
 // Takes a post ID and returns the post (with its id), or null if it doesn't
 // exist.
 export async function fetchPost(postId) {
