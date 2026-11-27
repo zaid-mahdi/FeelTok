@@ -4,6 +4,9 @@ FeelTok is a small, text-first social media app where **emotions are central**. 
 
 FeelTok is an **MVP** (minimum viable product) built by **Agile Group 1** for SWE6301 Agile Programming. It covers the core features well and leaves out everything that isn't needed for the course (see [Out of scope](#out-of-scope)). See `documentation.md` for the full documentation of how it works.
 
+**Module Tutor:** Ms Renuka Nyayadhish  
+**Supervisor:** Dr. Loraine
+
 ## The platform
 
 FeelTok is **one codebase** that runs in two places:
@@ -168,8 +171,3 @@ The following open-source projects were used as references and inspiration durin
 - [chat-application-react-native](https://github.com/priyansh7999/chat-application-react-native) by priyansh7999 (MIT) — friend code and friend invitation system
 - [InstagramClone](https://github.com/tuuguu21/InstagramClone) by tuuguu21 (Apache 2.0) — comments and likes on posts with Firestore
 - [JustTalk](https://github.com/adiksuu/justtalk) by adiksuu (MIT) — real-time messaging and Firebase service structure
-
----
-
-**Module Tutor:** Ms Renuka Nyayadhish  
-**Supervisor:** Dr. Loraine
