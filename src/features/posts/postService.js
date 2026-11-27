@@ -15,7 +15,7 @@ import {
 import { USER_MOODS } from "../../constants/moods";
 import { db } from "../../lib/firebase";
 
-export const POSTS_PER_PAGE = 10;
+const POSTS_PER_PAGE = 10;
 
 // Returns the starting reaction counts of a new post: 0 for each of the 6
 // user moods (people react to posts with the moods).

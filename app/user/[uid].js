@@ -11,7 +11,7 @@ import ErrorText from "../../src/components/ErrorText";
 import LoadingSpinner from "../../src/components/LoadingSpinner";
 import { POST_TYPES } from "../../src/constants/postTypes";
 import { useAuth } from "../../src/features/auth/AuthContext";
-import PostList from "../../src/features/posts/PostList";
+import PostList from "../../src/features/posts/feed/PostList";
 import ProfileHeader from "../../src/features/profile/ProfileHeader";
 import useProfileStats from "../../src/features/profile/useProfileStats";
 import useUserProfile from "../../src/features/profile/useUserProfile";

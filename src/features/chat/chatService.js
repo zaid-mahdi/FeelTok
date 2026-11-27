@@ -13,7 +13,7 @@ import {
 import { db } from "../../lib/firebase";
 
 // How many of the newest messages a chat loads (MVP: no older pages).
-export const MESSAGES_PER_CHAT = 50;
+const MESSAGES_PER_CHAT = 50;
 
 // Takes a friendship ID and returns its messages collection.
 function getMessagesCollection(friendshipId) {

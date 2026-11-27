@@ -1,6 +1,8 @@
 {
+  "description": "A record of the indexes made by hand in the Firebase console (Firestore Database -> Indexes). It is written to look like the console, not in the Firebase CLI format, so it can't be deployed; it only shows the team what must exist. JSON has no comments, so each entry has a description text instead.",
   "compositeIndexes": [
     {
+      "description": "A user's posts, newest first: the post list on My profile and on public profiles (All chip). Made in the Composite tab.",
       "collectionId": "posts",
       "queryScope": "Collection",
       "fields": [
@@ -9,6 +11,7 @@
       ]
     },
     {
+      "description": "A user's posts of one post type, newest first: the post type chips (Love, Gratitude, ...) on My profile and on public profiles. Made in the Composite tab.",
       "collectionId": "posts",
       "queryScope": "Collection",
       "fields": [
@@ -20,6 +23,7 @@
   ],
   "exemptions": [
     {
+      "description": "Finds all of a user's comments on every post at once (collection group query): changing the username (the copies in comments are updated) and deleting the account. Made in the Single field tab -> Add exemption.",
       "collectionId": "comments",
       "fieldPath": "authorId",
       "queryScope": "Collection group",
@@ -30,6 +34,7 @@
       }
     },
     {
+      "description": "Finds all of a user's reactions on every post at once (collection group query): deleting the account (each reaction is removed and the post's count goes down). Made in the Single field tab -> Add exemption.",
       "collectionId": "reactions",
       "fieldPath": "userId",
       "queryScope": "Collection group",

@@ -35,11 +35,11 @@ The moods and the post types are **two separate lists** and are never mixed. "lo
 
 ## 2. How to run
 
-1. Install Node.js (LTS) on the computer and **Expo Go** on the phone.
+1. Install Node.js (LTS) on the computer. **Expo Go** on a phone is only needed for the mobile version; the app also runs in a web browser.
 2. Run `npm install` in the project folder.
 3. Copy `.env.example` to `.env` and fill in the Firebase values (Firebase console → ⚙️ Project settings → General → Your apps → the web app → Config). Never commit `.env`.
-4. Run `npx expo start` and scan the QR code with the phone (same Wi-Fi as the computer).
-5. Press **w** in the Expo terminal to open the app in the browser. The admin dashboard is at `/admin` in that tab.
+4. Run `npx expo start`, then press **w** in the Expo terminal to open the app in the browser. The admin dashboard is at `/admin` in that tab.
+5. Mobile version (optional): scan the QR code with Expo Go on the phone (same Wi-Fi as the computer).
 6. After changing `.env`, or if the app shows old code, restart with `npx expo start -c`.
 
 The first-time Firebase setup (rules, indexes, making an admin) is in [section 8](#8-firebase-console-setup).

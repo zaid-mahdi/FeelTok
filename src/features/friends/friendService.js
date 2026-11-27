@@ -23,7 +23,7 @@ import {
 import { fetchProfiles } from "../profile/profileService";
 
 // Takes two user IDs and returns them sorted, as the friendship's members.
-export function sortFriendIds(uidA, uidB) {
+function sortFriendIds(uidA, uidB) {
   return [uidA, uidB].sort();
 }
 

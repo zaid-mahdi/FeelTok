@@ -1,5 +1,5 @@
 // The one place that decides which platform the app runs on. The admin
-// dashboard is web only, and the user screens are mobile only.
+// dashboard is web only; the user app works on phones and on the web.
 import { Platform } from "react-native";
 
 // True in a web browser, false in the mobile app.

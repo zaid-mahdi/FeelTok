@@ -1,5 +1,7 @@
 // Time helpers: show when something was posted, like the mockups ("2h",
 // "Yesterday").
+import { pluralize } from "./text";
+
 const MINUTE = 60 * 1000;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
@@ -18,11 +20,6 @@ export function formatPostTime(timestamp) {
   if (age < 2 * DAY) return "Yesterday";
   if (age < 7 * DAY) return `${Math.floor(age / DAY)}d`;
   return date.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
-}
-
-// Takes a count and a unit ("minute") and returns "1 minute" or "5 minutes".
-function pluralize(count, unit) {
-  return `${count} ${unit}${count === 1 ? "" : "s"}`;
 }
 
 // Takes a Firestore timestamp (or null while it is being saved) and returns a
@@ -86,4 +83,12 @@ export function formatPostedTime(timestamp) {
   if (postTime === "Yesterday") return "Posted yesterday";
   if (/^\d+[mhd]$/.test(postTime)) return `Posted ${postTime} ago`;
   return `Posted on ${postTime}`;
+}
+
+// Takes a Firestore timestamp and returns a date like "12 Nov 2026".
+export function formatJoinedDate(timestamp) {
+  if (!timestamp) return "–";
+  return timestamp
+    .toDate()
+    .toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }

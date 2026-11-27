@@ -77,7 +77,7 @@ To keep FeelTok an MVP, these are **not** built:
 
 ## How to run the project
 
-**You need:** Node.js (LTS), the **Expo Go** app on your phone (App Store or Google Play), and a Firebase project (see [Firebase setup](#firebase-setup)).
+**You need:** Node.js (LTS), a web browser and a Firebase project (see [Firebase setup](#firebase-setup)). The **Expo Go** app (App Store or Google Play) is only needed to run the mobile version on a phone.
 
 1. Clone the repo and open the folder in a terminal.
 2. Install the packages:
@@ -89,8 +89,8 @@ To keep FeelTok an MVP, these are **not** built:
    ```
    npx expo start
    ```
-5. **Mobile app:** scan the QR code with the camera (iPhone) or with Expo Go (Android). The phone and the computer must be on the same Wi-Fi.
-6. **Web:** press `w` in the Expo terminal to open the app in the browser.
+5. **Web:** press `w` in the Expo terminal to open the app in the browser. No phone or Expo Go needed.
+6. **Mobile app (optional):** install Expo Go and scan the QR code with the camera (iPhone) or with Expo Go (Android). The phone and the computer must be on the same Wi-Fi.
 7. **Admin dashboard:** in the browser, go to `http://localhost:8081/admin` and sign in with an admin account (see [How to make an admin](#how-to-make-an-admin)).
 
 If you change `.env`, or the app seems to run old code, restart with `npx expo start -c` (clears the cache).

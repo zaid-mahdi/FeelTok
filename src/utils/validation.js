@@ -6,7 +6,7 @@ export const MAX_BIO_LENGTH = 150;
 
 // Takes a username and returns an error message, or null if it is valid.
 // Allowed: 3 to 20 lowercase letters, numbers and underscores.
-export function validateUsername(username) {
+function validateUsername(username) {
   if (
     username.length < MIN_USERNAME_LENGTH ||
     username.length > MAX_USERNAME_LENGTH

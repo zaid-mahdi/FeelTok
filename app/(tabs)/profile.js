@@ -8,7 +8,7 @@ import ErrorText from "../../src/components/ErrorText";
 import LoadingSpinner from "../../src/components/LoadingSpinner";
 import { POST_TYPES } from "../../src/constants/postTypes";
 import { useAuth } from "../../src/features/auth/AuthContext";
-import PostList from "../../src/features/posts/PostList";
+import PostList from "../../src/features/posts/feed/PostList";
 import AccountSettingsModal from "../../src/features/settings/AccountSettingsModal";
 import EditProfileModal from "../../src/features/profile/EditProfileModal";
 import ProfileHeader from "../../src/features/profile/ProfileHeader";

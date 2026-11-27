@@ -1,12 +1,12 @@
 // Home tab: the For You feed, open to everyone, even when logged out. The
-// Friends feed comes in Task 15.
+// Friends switch only shows "Coming soon" (the Friends feed is out of scope).
 import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import PlaceholderPage from "../../src/components/PlaceholderPage";
-import ForYouFeed from "../../src/features/posts/ForYouFeed";
-import HomeHeader from "../../src/features/posts/HomeHeader";
-import PostedMessage from "../../src/features/posts/PostedMessage";
+import ForYouFeed from "../../src/features/posts/feed/ForYouFeed";
+import HomeHeader from "../../src/features/posts/feed/HomeHeader";
+import PostedMessage from "../../src/features/posts/feed/PostedMessage";
 import { takeJustPosted } from "../../src/features/posts/postedNotice";
 import { COLORS } from "../../src/theme/colors";
 

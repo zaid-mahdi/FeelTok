@@ -20,7 +20,7 @@ import {
 const MAX_CODE_TRIES = 5;
 
 // Returns a random code of 6 characters from the invite code alphabet.
-export function generateInviteCode() {
+function generateInviteCode() {
   let code = "";
   for (let index = 0; index < INVITE_CODE_LENGTH; index += 1) {
     const randomIndex = Math.floor(Math.random() * INVITE_CODE_ALPHABET.length);
@@ -32,7 +32,7 @@ export function generateInviteCode() {
 // Takes a user ID and returns one of their codes that nobody has used yet,
 // or null if they have none. It reads only their own codes, and picks the
 // unused one in the app, so no extra index is needed.
-export async function fetchUnusedInviteCode(uid) {
+async function fetchUnusedInviteCode(uid) {
   const snapshot = await getDocs(
     query(collection(db, "inviteCodes"), where("ownerId", "==", uid)),
   );
@@ -45,7 +45,7 @@ export async function fetchUnusedInviteCode(uid) {
 // Takes a user ID, makes a new code for them and returns it. Each try runs in
 // a transaction that checks the code is still free before saving it. If it
 // is taken, it tries another random code, up to 5 times.
-export async function createInviteCode(uid) {
+async function createInviteCode(uid) {
   for (let tryNumber = 1; tryNumber <= MAX_CODE_TRIES; tryNumber += 1) {
     const code = generateInviteCode();
     const codeRef = doc(db, "inviteCodes", code);

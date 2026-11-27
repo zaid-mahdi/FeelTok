@@ -10,7 +10,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import BackButton from "../../components/BackButton";
 import { COLORS } from "../../theme/colors";
 import { FONTS } from "../../theme/fonts";
-import PostTypeFilter from "../posts/PostTypeFilter";
+import PostTypeFilter from "../posts/feed/PostTypeFilter";
 import Avatar from "./Avatar";
 import MoodPill from "./MoodPill";
 import ProfileStats from "./ProfileStats";

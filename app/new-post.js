@@ -12,7 +12,7 @@ import CloseButton from "../src/components/CloseButton";
 import ErrorText from "../src/components/ErrorText";
 import LoadingSpinner from "../src/components/LoadingSpinner";
 import { useAuth } from "../src/features/auth/AuthContext";
-import NewPostForm from "../src/features/posts/NewPostForm";
+import NewPostForm from "../src/features/posts/newPost/NewPostForm";
 import { markJustPosted } from "../src/features/posts/postedNotice";
 import { COLORS } from "../src/theme/colors";
 import { FONTS } from "../src/theme/fonts";

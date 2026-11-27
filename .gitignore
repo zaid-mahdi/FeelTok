@@ -44,3 +44,6 @@ example
 
 # Firebase / secrets (never commit real keys)
 .env
+
+# Old version of the documentation, kept locally as a draft
+documentation-draft.md

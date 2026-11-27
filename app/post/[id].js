@@ -20,7 +20,7 @@ import { useAuth } from "../../src/features/auth/AuthContext";
 import CommentInput from "../../src/features/comments/CommentInput";
 import CommentItem from "../../src/features/comments/CommentItem";
 import useComments from "../../src/features/comments/useComments";
-import PostCard from "../../src/features/posts/PostCard";
+import PostCard from "../../src/features/posts/card/PostCard";
 import usePost from "../../src/features/posts/usePost";
 import { COLORS } from "../../src/theme/colors";
 import { FONTS } from "../../src/theme/fonts";

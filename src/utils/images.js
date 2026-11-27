@@ -8,10 +8,10 @@ const MAX_PICKED_FILE_BYTES = 10 * 1024 * 1024; // "up to 10 MB" in the design
 const POST_PHOTO_WIDTH = 800;
 // A Firestore document can hold at most 1 MiB, so the photo text must stay
 // under this (the same limit is in firestore.rules).
-export const MAX_POST_PHOTO_CHARACTERS = 900000;
+const MAX_POST_PHOTO_CHARACTERS = 900000;
 // Profile photos are small squares (the same limit is in firestore.rules).
 const PROFILE_PHOTO_SIZE = 300;
-export const MAX_PROFILE_PHOTO_CHARACTERS = 300000;
+const MAX_PROFILE_PHOTO_CHARACTERS = 300000;
 // Tried one after the other until the photo is small enough.
 const COMPRESS_LEVELS = [0.7, 0.5, 0.3];
 
