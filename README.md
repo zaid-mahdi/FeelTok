@@ -23,6 +23,7 @@ FeelTok is **one codebase** that runs in two places:
   - **Expo Go**: the app on the phone that runs the project without building it.
   - **Expo web**: the same project in the browser (used for the admin dashboard).
   - Expo packages for photos (`expo-image-picker`, `expo-image-manipulator`, `expo-image`) and copying invite codes (`expo-clipboard`).
+- **Styling**: React Native `StyleSheet` (no CSS files, no styling library); the brand colours and fonts are in `src/theme/`.
 - **Firebase** (free Spark plan):
   - **Firebase Authentication**: email and password accounts.
   - **Cloud Firestore**: the only database. Security rules (`firestore.rules`) decide who can read and write what.

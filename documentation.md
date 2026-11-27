@@ -33,6 +33,8 @@ The moods and the post types are **two separate lists** and are never mixed. "lo
 
 **Tech stack:** React Native with Expo and Expo Router (JavaScript only), Firebase Authentication (email and password) and Cloud Firestore, on the free Spark plan. Without the paid plan there is no Firebase Storage or Cloud Functions, so photos are saved as compressed base64 text in their own Firestore documents, and all checks happen in the Firestore security rules.
 
+**Styling:** React Native's built-in `StyleSheet` (styles written as JavaScript objects with CSS-like properties). There are no CSS files and no styling library such as NativeWind. Each component keeps its styles at the bottom of its own file, and the brand colours and fonts come from `src/theme/colors.js` and `src/theme/fonts.js`. On the web, Expo turns these styles into CSS in the browser.
+
 ## 2. How to run
 
 1. Install Node.js (LTS) on the computer. **Expo Go** on a phone is only needed for the mobile version; the app also runs in a web browser.
