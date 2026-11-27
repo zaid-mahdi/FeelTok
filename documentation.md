@@ -1,1011 +1,413 @@
 # FeelTok documentation
 
-This file describes the project as it is built today. It is updated after every task.
+This file explains how FeelTok works: how to run it, how the data is stored, who may do what, how each feature works, and what every code file does. For a quick introduction, see `README.md`.
 
-## Overview
-
-FeelTok is a small social app where emotions are central. Users will use it as a mobile app, and admins will use a dashboard in the browser. Both come from the same project.
-
-So far, sign up, login and forgot password work and have their final design. Roles work: the app works on phones and in the browser, and admins sign in at `/admin` in the browser. Users can create posts on the New post page, and everyone, even logged out, can read all posts in the For You feed on Home. Logged-in users react to posts with one of the 6 moods, and comment on the post page. Users can delete their own posts, have a profile page with photo, bio and current mood, change their mood on the Mood tab, and open other people's profiles. On the Friend List tab, users add friends with invite codes, see their friends' current moods, search their friends, remove friends, and chat with a friend. In Account settings they change their username, email and password, log out, or delete their account with everything in it. All other pages are placeholders. The team's designer is still working on those pages.
-
-**Tech stack:** Expo (React Native) with Expo Router, JavaScript only, Firebase Authentication (email and password) and Cloud Firestore. We use the free Firebase plan.
-
-## How to run
-
-1. Install Node.js (LTS) on the computer and **Expo Go** on the phone.
-2. Run `npm install` in the project folder.
-3. Copy `.env.example` to a new file named `.env` and fill in the Firebase values. Find them in Firebase console → ⚙️ Project settings → General → Your apps → the web app → Config. Never commit `.env`.
-4. Run `npx expo start` and scan the QR code with the phone. After changing `.env`, run `npx expo start -c` instead.
-5. To open the app in the browser, press **w** in the Expo terminal. To open the admin area, go to `/admin` in that browser tab and sign in with an admin account (see "How to make an admin" in the README).
-
-## Folder structure
-
-| Folder or file | What it is for |
-|---|---|
-| `app/` | The screens. Each file is one page. |
-| `app/(tabs)/` | The 5 tabs: Home, Friend List, Create (opens the New post page), Mood, Profile |
-| `app/post/` | The post page: one post with its comments |
-| `app/user/` | Public profile pages: someone else's profile and posts |
-| `app/chat/` | The chat page: messages with one friend |
-| `app/admin/` | The admin area (web only): sign-in and dashboard (`index.js`), the Users table (`users.js`) and one user's page (`user/[uid].js`) |
-| `src/lib/` | Firebase setup |
-| `src/features/auth/` | Everything about sign up, login and passwords |
-| `src/features/profile/` | Usernames, user profiles, the avatar (photo or initials), profile photo, bio and current mood |
-| `src/features/posts/` | Posts: their Firestore calls and hooks at the top, and three sub-folders: `feed/` (the Home header, the For You feed and the shared post list with its type chips), `card/` (the post card and its parts) and `newPost/` (the New post form and its parts) |
-| `src/features/reactions/` | Reacting to posts with a mood: the React button and its Firestore calls |
-| `src/features/comments/` | Comments: the comment box, one comment, and their Firestore calls |
-| `src/features/friends/` | Friends: invite codes, adding and removing friends, the friend list and the Friends page parts |
-| `src/features/chat/` | Chat between two friends: the messages, the chat header and their Firestore calls |
-| `src/features/settings/` | Account settings: change username, email and password, log out, delete account |
-| `src/features/admin/` | The admin area: its Firestore calls (`adminService.js`) and data loader (`useAdminData.js`) at the top, and five sub-folders: `signIn/` (the admin sign-in page), `layout/` (the sidebar frame and the admins-only guard), `dashboard/` (the dashboard, stat cards and recent posts), `users/` (the Users table, the user card and the user's post cards) and `parts/` (small pieces shared by the admin pages) |
-| `src/components/` | Small pieces shared by many screens |
-| `src/constants/` | Fixed lists: the 6 user moods and the 6 post types (two separate lists) |
-| `src/theme/` | Colours and fonts |
-| `src/utils/` | Helpers: error messages, input checks, photos, times and dates, text ("1 comment" / "3 comments") and the web/mobile check |
-| `assets/` | Images, icons and the logo |
-| `firestore.rules` | The database security rules |
-| `firestore.indexes.json` | A record of what was set up in Firestore Database → Indexes, written like the console screens (two composite indexes: a user's posts, newest first, with or without one post type; and two collection group settings: comments by authorId, reactions by userId) |
-
-## Data model
-
-User accounts (email and password) are in Firebase Authentication. Firestore has 7 collections. Posts have `reactions` and `comments` sub-collections, and friendships have a `messages` sub-collection:
-
-| Collection | Document ID | Fields |
-|---|---|---|
-| `users` | The user's ID | `username`, `displayName` (same as the username at sign up), `bio` (empty), `hasPhoto` (false), `mood` (null), `moodUpdatedAt` (null), `role` ("user"), `banned` (false), `createdAt` |
-| `usernames` | The username | `uid`: the ID of the user who has it |
-| `posts` | A new ID | `authorId`, `authorUsername`, `authorHasPhoto`, `authorMood` (one of the 6 moods or null), `postType` (one of the 6 post types), `text`, `imageId` (the post's own ID if it has a photo, or null), `reactionCounts` (0 for each of the 6 moods), `commentCount` (0), `createdAt` |
-| `posts/{postId}/reactions` | The ID of the user who reacted | `reaction`: one of the 6 moods, and `userId` (the same ID, so all of a user's reactions can be found). One per user per post |
-| `posts/{postId}/comments` | A new ID | `authorId`, `authorUsername`, `text` (up to 500 characters), `createdAt`. The commenter's mood is not saved: their avatar reads their current mood from their profile |
-| `postImages` | The post's ID | `ownerId`, `data` (the photo as base64 text), `createdAt` |
-| `inviteCodes` | The code itself (6 characters, no I, O, 0 or 1) | `ownerId` (who made it), `usedBy` (the friend who used it, or null), `usedAt` (or null), `createdAt`. Each code works once |
-| `friendships` | The two user IDs, sorted and joined with "_" | `members` (the two user IDs, sorted), `inviteCode` (the code used to become friends), `createdAt`. The ID makes two friendships between the same people impossible |
-| `friendships/{friendshipId}/messages` | A new ID | `senderId`, `text` (up to 500 characters), `createdAt`. The chat between the two friends. Deleted together with the friendship |
-| `profileImages` | The user's ID | `data` (the profile photo: a 300 x 300 px JPEG as base64 text), `updatedAt`. One per user; a new photo replaces the old one |
-
-The username is the document ID, so two users can never have the same one. The email is not saved in Firestore.
-
-There are two separate lists of six: the **moods** (happy, sad, angry, love, surprised, funny) for how a user feels (their current mood), a post's mood and reactions to posts; and the **post types** (love, gratitude, apology, appreciation, mindfulness, thank_you) for what kind of post it is.
-
-## Security rules summary
-
-- Anyone can check if one username is taken, but nobody can list all usernames.
-- A new user can create only their own profile and username, both together and only once.
-- A new profile must have the starting values, so nobody can sign up as an admin or with extra fields.
-- Anyone can read one user's profile, but nobody can list all profiles.
-- Users can change their username only by claiming the new one and giving up the old one in the same step. Users can delete their own profile, profile photo (only together with the profile), username and invite codes (delete account).
-- Users can edit only their own display name, bio (up to 150 characters), photo flag and mood (one of the 6 user moods, or none). They can never change their own role, blocked status, username or join date, so nobody can make themselves an admin. The photo flag must say whether their profile photo really exists.
-- Anyone can read one profile photo. Users can save only their own (up to 300,000 characters of base64 text), together with turning their photo flag on. Profile photos can't be removed yet.
-- Nobody can delete profiles from the app yet, and nobody can change or delete usernames.
-- A logged-in user who is not blocked can create a post as themselves, with their real username, a valid type, their current mood (so the mood when posting can't be made up), text that isn't empty (up to 5,000 characters) and all counts at 0.
-- A post photo can only be created together with its post, by its author, and must be small enough for one document.
-- Anyone, even logged out, can read posts and list them (the For You feed), and read one post photo at a time. Nobody can list all photos.
-- Anyone can read reactions. A logged-in user who is not blocked can set, switch or remove only their own reaction (one of the 6 moods), on any post including their own.
-- The only changes to a post are its reaction counts (only by exactly what the user's own reaction adds or removes in the same step), its comment count (see below), and, by its author only, the copies of their username and photo flag, which must match their profile.
-- Anyone can read comments. A logged-in user who is not blocked can add comments as themselves (up to 500 characters, not only spaces) and delete only their own. Deleting other people's comments is for admins (Task 17). Comments can't be edited.
-- Adding or deleting a comment must change the post's comment count by exactly 1 in the same step. The author may update only the copy of their username on their comments, to their real username.
-- A reaction must also store the user's own ID (`userId`).
-- Admins (role "admin", set by hand in the console) can list and count all users, block or unblock a user (only the `banned` field, never themselves or another admin), and delete any post (with its photo, comments and reactions) or any comment (with the post's count). Admins can't edit posts or change anyone's role.
-- A blocked user can't log in (the app logs them out), and the rules stop them from posting, commenting, reacting, adding friends and sending messages.
-- Anyone can list all comments or reactions across all posts at once (they are public anyway); the app uses it only to find a user's own.
-- Authors can delete their own posts, always together with the post's photo. When a post is deleted, its author may delete all its comments and reactions (also other people's) in the same step. Comments and reactions left over from a deleted post can be cleaned up by any logged-in user.
-- Posts and photos can't be edited.
-- A logged-in user who is not blocked can make invite codes for themselves (6 characters from the code alphabet, unused). They can list only their own codes. Anyone logged in can read one code if they know it.
-- A code can be used only once, never by its owner, and only in the same step as the friendship it creates. A friendship can only be created with a real, unused code, between the user and the code's owner, with the sorted IDs as its ID. So nobody can become friends with someone without their code.
-- Only the two friends can read their friendship. Users can list and count only their own friendships, so nobody can see who someone else is friends with.
-- Either friend can delete their friendship (remove friend), unless they are blocked. Friendships can't be edited, and codes can't be deleted.
-- Only the two friends can read and send chat messages, and only while they are friends. A message is sent as yourself, with the server's time, up to 500 characters and not only spaces. Blocked users can't send. Messages can't be edited, and are deleted only together with the friendship (or after it is gone).
-- Everything else is locked. Each task opens only what it needs.
+**Contents**
+1. [Overview](#1-overview)
+2. [How to run](#2-how-to-run)
+3. [Folder structure](#3-folder-structure)
+4. [Data model (Firestore)](#4-data-model-firestore)
+5. [Security rules](#5-security-rules)
+6. [How each feature works](#6-how-each-feature-works)
+7. [Code walkthrough](#7-code-walkthrough)
+8. [Firebase console setup](#8-firebase-console-setup)
+9. [Testing](#9-testing)
+10. [Limits and known issues](#10-limits-and-known-issues)
+11. [Task history](#11-task-history)
 
 ---
 
-### Task 1 — Connect Firebase
-
-**What it does:** The app connects to Firebase. After login, the user sees 4 tabs: Home, Create, Friends and Profile. Each one shows "Coming soon" until its design is ready.
-
-**Files:**
-- `.env`: the Firebase keys (not committed)
-- `src/lib/firebase.js`: starts Firebase (moved from `src/config/firebase.js`)
-- `app/_layout.js`: loads the fonts and shares the login state with all screens
-- `app/(tabs)/_layout.js`: the tab bar
-- `app/(tabs)/index.js`, `create.js`, `friends.js`, `profile.js`: the 4 placeholder tabs (`index.js` is Home and replaces `app/index.js`)
-- `src/components/`: `PlaceholderPage.js`, `EmptyState.js`, `ErrorText.js`, `LoadingSpinner.js`
-- `src/constants/emotions.js`: the "Hi Six" emotions from the assignment (Love, Gratitude, Apology, Appreciation, Mindfulness, Thank you)
-- `src/theme/colors.js`: the colours from the login design
-- `src/utils/errors.js`: friendly error messages
-- `src/utils/validation.js`: username rules, login checks and text limits
-- `firestore.rules`, `firestore.indexes.json`: security rules and indexes
-- `package.json`: added packages for saved logins, choosing pictures, resizing pictures and web support
-
-**Main functions / hooks / components:**
-- `startAuth`: starts login and chooses where it is saved (phone storage or browser storage)
-- `friendlyError`: turns a Firebase error into a simple message
-- `validateUsername`: checks the username rules (used in Task 2)
-- `validateLogin`: checks that the email and password are filled in
-- `PlaceholderPage`: shows a page name and "Coming soon"
-- `EmptyState`, `ErrorText`, `LoadingSpinner`: shared messages and loading screen
-
-**Firestore:** nothing is read or written yet.
-
-**Firebase console steps:** Email/Password login turned on, the Firestore database created, and the locked rules published.
-
-**How to test:**
-1. Run `npx expo start -c` and open the app in Expo Go. It opens on the login page without errors.
-2. Log in and open each tab. Each one shows its name and "Coming soon".
-3. Press **w** in the Expo terminal. The project opens in the browser.
-
-**Notes / limits:** The tabs have no design or icons yet. The tabs also open in the browser for now; Task 5 will limit them to mobile.
-
-### Task 2 — Sign up with unique username + Forgot password
-
-**What it does:** A new user taps "Create your story" on login or forgot password, enters a username, an email and the password twice, and gets an account. The Create account button stays grey until all four fields are filled in. They are logged in straight away, and no email confirmation is needed. A taken username or wrong input shows a clear message. A user who forgot their password taps "Forgot password?" on login, enters their email and gets a reset link by email. The page always shows the same message, so nobody can use it to find out who has an account. A back button returns to login.
-
-**Files:**
-- `app/signup.js`: the sign up page layout from the designer
-- `src/features/auth/SignUpForm.js`: the sign up fields and button
-- `src/features/profile/profileService.js`: the calls to Firestore for usernames and profiles
-- `firestore.rules`: the rules for usernames and new profiles
-- `app/forgot-password.js`: the forgot password page
-- `src/features/auth/ForgotPasswordForm.js`: the email field and the Send Link button
-- `src/features/auth/AuthLayout.js`: the logo, title, footer and back button shared by login, sign up and forgot password
-- `src/features/auth/EmailField.js`: the email field shared by login and forgot password
-- `src/features/auth/PasswordField.js`: the password field with Show/Hide, shared by login and sign up
-- `src/components/TextField.js`: the label and input from the design system, with the purple focused style, an optional "@" prefix and hint text below (replaces `authFormStyles.js`)
-- `src/components/BackButton.js`: the back button shared by sign up and forgot password
-- `src/components/PrimaryButton.js`: the purple button, darker when pressed and grey when it can't be used yet
-- `src/components/NoticeText.js`: good or neutral messages
-- `assets/images/icon-back.svg`: the back arrow
-- Changed: `app/login.js` and `src/features/auth/LoginForm.js` (use the shared files, and "Forgot password?" and "Create your story" work), `src/theme/colors.js` (the full brand kit palette), `src/features/auth/authService.js` (sign up and reset email), `src/utils/validation.js` (new checks), `src/utils/errors.js` (the "username taken" message)
-
-**Main functions / hooks / components:**
-- `signUp`: checks the username, creates the account and saves the profile
-- `removeUnfinishedAccount`: deletes a new account if its profile could not be saved
-- `isUsernameFree`: checks if nobody uses a username
-- `createUserProfile`: saves the username and the profile together
-- `createUsernameTakenError`: the error for a taken username
-- `validateSignUp`: checks the sign up fields, also that both passwords match
-- `SignUpForm`: checks the fields, signs up and shows errors
-- `sendPasswordReset`: asks Firebase to send the reset email
-- `validateEmail`: checks that the email is filled in
-- `ForgotPasswordForm`: checks the email, sends the link and shows the result
-- `TextField`, `EmailField`, `PasswordField`: the inputs
-- `AuthLayout`, `BackButton`, `PrimaryButton`, `NoticeText`: shared pieces of the pages
-
-**Firestore:** sign up reads and writes `usernames` and writes `users`. Forgot password uses no Firestore data.
-
-**Firebase console steps:** the new `firestore.rules` published in Firestore Database → Rules. No indexes are needed. The reset email text can be changed in Authentication → Templates → Password reset.
-
-**How to test sign up** (publish the rules first):
-1. On login, tap "Create your story". The sign up page opens. The Create account button is grey.
-2. Fill in only three fields. The button stays grey and does nothing. Fill in the fourth and it turns purple.
-3. Use the username "Ab". It says "Username must be 3 to 20 characters."
-4. Use the username "Sara K". It says "Username can only have lowercase letters, numbers and underscores."
-5. Use a good username and the password "123". It says "Password must be at least 6 characters."
-6. Use a good password and a different confirm password. It says "The passwords don't match."
-7. Use the email "abc" with good other fields. It says "Please enter a valid email address."
-8. Enter a new email, a free username and a good password twice. Home opens.
-9. In the Firebase console, check the new user in Authentication, and the new documents in `users` (role is "user") and `usernames`.
-10. Log out. Sign up with another email and the same username. It says "This username is already taken."
-11. Sign up with the same email and another username. It says "This email is already in use."
-12. Turn the internet off and try to sign up. It says there is no internet connection.
-13. Log in with the new account. Home opens.
-14. On sign up, tap inside each input. It turns white with a purple border.
-15. Tap Show on the password. It shows and hides the password. The confirm password has no Show button.
-16. Tap the back button. Login opens. Open sign up again and tap "Log in" at the bottom. Login opens.
-
-**How to test forgot password:**
-1. On login, tap "Forgot password?". The forgot password page opens.
-2. Tap Send Link with no email. It says "Please enter your email."
-3. Enter "abc". It says "Please enter a valid email address."
-4. Enter an email with no account. It says "If an account exists for this email, we've sent a reset link."
-5. Enter a test account's email. The same message shows, and the email arrives (check spam).
-6. Open the link, choose a new password and log in with it.
-7. Tap the back button. It looks the same as on sign up. Login opens.
-
-**Notes / limits:**
-- The test account must use a real email address, or no email can arrive.
-- The new password is chosen on a Firebase web page, not inside the app.
-- The team decided not to add email verification in the MVP, so people can sign up with an email that isn't theirs.
-- The display name is the same as the username for now.
-- If the internet drops in the middle of a sign up, an account without a profile can be left behind. Delete it in Authentication → Users to free the email.
-- Accounts made in the Firebase console have no profile and no username.
-- The message below the email field on forgot password is not from the designer yet.
-- Sign up follows the designer's newest mockup: username first, an "@" before the username, hints under the username and password, the terms sentence under the button, and "Already have an account? Log in" at the bottom.
-- The password hints say 6 characters, because the team kept the 6 character minimum. The mockup said 8 with a letter and a number.
-- "Terms" and "Community guidelines" are not links yet, because those pages don't exist.
-- Sign up uses a slightly smaller logo, title and inputs than login, as in its mockup.
-- Buttons are 54 px high on all pages, as in every mockup. The design system says 52.
-
-### Task 3 — Login + auth hook (login part only)
-
-**What it does:** Users log in with their email and password on the designed login page. A wrong email or password shows a clear message. Users stay logged in after closing the app.
-
-**Files:**
-- `app/login.js`: the login page layout from the designer (moved from `app/(auth)/login.js`)
-- `src/features/auth/LoginForm.js`: the fields and the Log in button
-- `src/features/auth/authService.js`: the calls to Firebase login
-- `src/features/auth/AuthContext.js`: shares the logged-in user with all screens
-- `app/(tabs)/profile.js`: shows who is logged in, with a temporary log out button
-
-**Main functions / hooks / components:**
-- `logIn`: logs in with email and password
-- `logOut`: logs out
-- `AuthProvider`: listens for login and logout and shares the result
-- `useAuth`: gives a screen the user and whether login is still being checked
-- `LoginForm`: checks the fields, logs in and shows errors
-
-**Firestore:** nothing is read or written.
-
-**Firebase console steps:** add a test account in Authentication → Users → Add user.
-
-**How to test:**
-1. Tap Log in with empty fields. It says "Please enter your email."
-2. Enter a wrong password. It says "Wrong email or password."
-3. Log in with the test account. Home opens.
-4. Close the app fully and open it again. You are still logged in.
-5. Open Profile. It shows your email. Tap Log out and the login page opens.
-
-**Notes / limits:**
-- The user profile and the admin check were added to `useAuth` in Task 5.
-- The app sends logged-out users to login. Home becomes public in Task 7.
-
-### Task 4 — Logout
-
-**What it does:** The team decided that logout belongs in Settings, which opens from the Profile page (Task 16). Until then, the temporary Log out button on the Profile placeholder stays, so the team can keep testing.
-
-**Files:** none changed.
-
-**Notes / limits:** Logout returns to login for now. When Home becomes public (Task 7), it returns to Home.
-
-### Task 5 — Roles + route guards
-
-**What it does:** The app now knows each user's profile and whether they are an admin. The normal app works on phones and in the browser. The admin area is at `/admin` in the browser: it shows the admin sign-in page, and the admin dashboard once an admin has signed in. A logged-in user who is not an admin sees "not an admin" there and stays logged in to the normal app. The mobile app has no admin area. The security rules stop anyone from making themselves an admin.
-
-**Files:**
-- `src/utils/platform.js`: the one place that says if the app runs on the web or on a phone
-- `src/features/auth/AuthContext.js`: now also shares the live profile, the admin check and profile errors
-- `src/features/profile/profileService.js`: listens to a user's profile
-- `src/lib/firebase.js`: uses the shared web/mobile check
-- `app/admin/_layout.js`: the admin area exists only on the web; the mobile app goes to Home
-- `app/admin/index.js`: the admin page: the sign-in form, or the dashboard placeholder for admins
-- `src/features/admin/signIn/AdminAuthLayout.js`: the admin sign-in layout from the designer (dark brand panel and white card)
-- `src/features/admin/signIn/AdminSignInForm.js`: the admin sign-in form
-- `app/forgot-password.js`: its back button now returns to the page that opened it (login or the admin page)
-- `src/constants/moods.js` and `src/constants/reactions.js`: the 6 user moods and the 6 post reactions, kept separate (they replace `emotions.js`)
-- `src/theme/colors.js`: the colours of the dark admin panel
-- `assets/images/feeltok-logo-reversed.svg`: the white logo for dark backgrounds; `icon-lock.svg`: the lock icon in the admins-only note
-- `firestore.rules`: anyone can read a profile; users can edit only safe fields of their own profile
-- `README.md`: how to make an admin
-
-**Main functions / hooks / components:**
-- `isWeb`: true in the browser, false in the mobile app
-- `subscribeToProfile`: listens to a user's profile and reports every change
-- `useAuth`: now gives user, profile, profileError, isAdmin and isLoading
-- `AdminLayout`: keeps the admin area out of the mobile app
-- `AdminScreen`: shows the sign-in form or the dashboard placeholder
-- `AdminAuthLayout`, `AdminSignInForm`: the admin sign-in page
-- `USER_MOODS`, `POST_REACTIONS`: the two separate emotion lists
-
-**Firestore:** reads `users` (the logged-in user's own profile, live).
-
-**Firebase console steps:**
-- Publish the new `firestore.rules` in Firestore Database → Rules.
-- Make a test account an admin: see "How to make an admin" in the README.
-
-**How to test:**
-1. On a phone, log in with a normal account. The tabs open as before.
-2. In the browser, log in with the same normal account on the normal login page. The normal app opens.
-3. In the browser, open `/admin` while logged in as the normal user. The admin sign-in page says the account is not an admin. "Back to FeelTok" returns to the app, still logged in.
-4. Make another account an admin in the Firebase console. Open `/admin` and sign in with it. The dashboard placeholder shows "Signed in as admin @username".
-5. Tap "Reset password". The forgot password page opens, and its back button returns to the admin page.
-6. While the admin is on the dashboard, change their `role` to `user` in the console. The page switches to the sign-in form with the "not an admin" message.
-7. On a phone, log in with the admin account. The normal tabs open. There is no admin area in the mobile app.
-
-**Notes / limits:**
-- The admin dashboard is a placeholder until Task 17.
-- New admins are still made by hand in the Firebase console. Nobody can sign up as an admin.
-- The designer's note under the Sign in button also said sign-ins are logged and protected with two-step verification. FeelTok has neither (two-step verification needs Firebase's paid plan), so that part was removed.
-- An admin is also a normal user: logging in on the normal login page opens the normal app.
-- Accounts made only in the Firebase console have no profile, so they can't be admins. Make admins from accounts that signed up in the app.
-- In the browser, the admin check always waits for the server, so an old saved role is never used.
-- The white logo was made from the brand kit's rule (overlap and wordmark white on Midnight Ink). The designer should confirm it.
-- The mockup's "Keep me signed in" checkbox was left out (team decision): admins stay signed in, like everyone else.
-- The "not an admin" message is not in the mockup.
-
-### Task 6 — Create post
-
-**What it does:** Tapping the Create tab opens the full-screen New post page from the designer's mockup. The user picks one of the 6 post types (required), writes up to 500 words (required) and can add one photo. The post's mood starts on the user's current mood. "Change mood" changes it for this post only, or clears it with "No mood". (Changed later: see "Post mood change" at the end. The post now always saves the current mood.) The Post button stays grey until a type is picked and some text is written. After posting, the page closes and Home opens.
-
-**Files:**
-- `app/new-post.js`: the New post page: the header with ✕ and the form. Logged-out users go to login
-- `app/(tabs)/_layout.js`: tapping Create opens the New post page; the new Mood tab
-- `app/(tabs)/create.js`: sends anyone who opens `/create` to the New post page
-- `app/(tabs)/mood.js`: the Mood tab, a placeholder until its design is ready
-- `src/features/posts/postService.js`: saves a post, and its photo, together
-- `src/features/posts/newPost/NewPostForm.js`: the form, its checks and the bar with the Post button
-- `src/features/posts/card/PostAuthorMood.js`: the avatar, name, the post's mood and "Change mood"
-- `src/features/posts/newPost/PostTypePicker.js`: the 6 post types in two columns
-- `src/features/posts/newPost/PostTextField.js`: the big text box
-- `src/features/posts/newPost/PostPhotoField.js`: "Add a photo", or the photo with a remove (✕) button
-- `src/features/posts/newPost/PostFormSection.js`: a section heading with its note ("Required", the word count)
-- `src/features/profile/Avatar.js`: a round avatar with initials and a ring in the mood's colour
-- `src/components/CloseButton.js`: the round ✕ button
-- `src/components/PrimaryButton.js`: can now take extra spacing
-- `src/constants/postTypes.js`: the 6 post types with their labels, icons and colours (replaces `reactions.js`)
-- `src/constants/moods.js`: now also has each mood's ring and tint colour
-- `src/theme/colors.js`: the mood colours and the light pink and light purple tints
-- `src/utils/images.js`: picks a photo, makes it smaller and turns it into text for Firestore
-- `src/utils/validation.js`: the 500-word limit and the post checks
-- `src/utils/errors.js`: messages for photos that are too big
-- `src/features/admin/signIn/AdminAuthLayout.js`: its tags now read from the post types list
-- `assets/images/`: the 6 post type icons, and the close and photo icons
-- `firestore.rules`: who can create posts and post photos
-
-**Main functions / hooks / components:**
-- `createPost`: saves the post and its photo in one batch, so neither is saved without the other
-- `pickPhoto`: opens the photo library with cropping, and refuses files over 10 MB
-- `preparePostPhoto`: makes the photo at most 800 px wide and compresses it until it fits in Firestore
-- `countWords`, `validatePost`: count the words and say what is still missing
-- `NewPostForm`, `PostAuthorMood`, `PostTypePicker`, `PostTextField`, `PostPhotoField`, `PostFormSection`: the parts of the page
-- `Avatar`: initials in a purple circle, with a ring in the colour of the user's current mood
-- `POST_TYPES`: the 6 post types
-
-**Firestore:** writes `posts` and `postImages`; reads the user's own profile through `useAuth`.
-
-**Firebase console steps:**
-- Publish the new `firestore.rules` in Firestore Database → Rules.
-- No index is needed.
-
-**How to test:**
-1. Tap Create. The New post page opens full screen, with your name and current mood at the top.
-2. The Post button is grey, and the bar says "Pick a post type and write something to post".
-3. Pick a type and write some text. The word count goes up and Post turns purple.
-4. Type only spaces. Post stays grey. Paste more than 500 words: the count turns red and Post stays grey.
-5. Tap "Change mood", pick another mood. Only the post's mood changes; your avatar ring stays the same.
-6. Tap "Add a photo", pick and crop a photo. A preview appears. Tap ✕ on it to remove it, then add it again.
-7. Tap Post. The page closes and Home opens. In the Firebase console, check the new post in `posts` and its photo in `postImages` (same ID).
-8. Post again without a photo and with "No mood". The post has `imageId` null and `authorMood` null.
-9. Tap ✕ at the top. The page closes without posting.
-
-**Notes / limits:**
-- The team changed the plan: Love, Gratitude, Apology, Appreciation, Mindfulness and Thank you are now **post types** (one per post, required). People will react to posts with the **6 moods** (Task 8). Each new post starts with 0 reactions for each mood.
-- Posts can't be read yet. The feed comes in Task 7.
-- Team decisions: users can react to their own posts (Task 8), and the Mood tab is built in Task 11.
-- A photo uses its post's ID as its own ID. The rules only accept a photo that is created together with its post, by the same user.
-- The rules can't count words, so they limit the text to 5,000 characters. The app limits it to 500 words.
-- Photos are saved as JPEG, at most 800 px wide and under 900,000 characters of text, so they always fit in one Firestore document.
-- Avatars show initials until profile photos are added (Task 11).
-- The mockup's text box shows "[object Object]" (a mistake in the design file), so the app uses "What's on your mind?" until the designer gives the real text.
-- The mood list that opens from "Change mood", the selected post type look and the photo preview are not in the mockup.
-- The Mood tab is a placeholder. Changing your current mood comes later.
-- Accounts made only in the Firebase console have no profile, so they can't post.
-
-### Task 7 — Public "For You" feed + pagination
-
-**What it does:** Home now shows the For You feed from the designer's mockup: every post, newest first, also for logged-out users. It loads 10 posts at a time and loads the next 10 when you scroll near the end. Pulling down refreshes it, and it also refreshes when you come back to Home, so a new post shows at the top, with a short "Posted!" message. The app has the designed tab bar: Home, Friend List, Create, Mood and Profile. Logged-out users can read Home; tapping any other tab sends them to login.
-
-**Files:**
-- `app/(tabs)/index.js`: Home: the header, the For You feed (Friends shows a placeholder until Task 15) and the "Posted" message
-- `app/new-post.js`: tells Home that a post was just saved
-- `src/features/posts/feed/PostedMessage.js`: the "Posted! Your post is now in the feed." message, shown for 3 seconds
-- `src/features/posts/postedNotice.js`: remembers that a post was just saved, so Home shows the message once
-- `src/theme/colors.js`: the light green behind the message
-- `app/(tabs)/_layout.js`: the designed tab bar; Home is public, the other tabs need a login
-- `app/(tabs)/friends.js`, `mood.js`: send logged-out users to login
-- `app/(tabs)/profile.js`: goes to Home after logging out
-- `src/components/AppTabBar.js`: the tab bar from the mockup
-- `src/features/posts/feed/HomeHeader.js`: the logo and the For You / Friends switch
-- `src/features/posts/feed/ForYouFeed.js`: the list: loading, empty and error states, pull to refresh, loading more
-- `src/features/posts/usePaginatedPosts.js`: loads the posts page by page
-- `src/features/posts/card/PostCard.js`: one post: author, mood, time, type, text with "see more", photo, counts, Share
-- `src/features/posts/card/PostTypeTag.js`: the small post type tag
-- `src/features/posts/card/PostPhoto.js`: loads and shows a post's photo
-- `src/features/posts/card/PostStats.js`: the top 3 reactions with the total, and the number of comments
-- `src/features/posts/postService.js`: now also reads a page of posts and a post's photo
-- `src/features/profile/Avatar.js`: now has the mood emoji badge, and each user gets one of three circle colours
-- `src/utils/time.js`: shows when a post was made ("2h", "Yesterday")
-- `assets/images/`: the tab bar icons and the Share icon
-- `firestore.rules`: anyone can read posts and post photos
-
-**Main functions / hooks / components:**
-- `fetchPostsPage`: loads 10 posts, newest first, starting after the last one already loaded
-- `fetchPostPhoto`: loads one post's photo
-- `usePaginatedPosts`: gives the posts, the loading states and `loadMore`, `refresh` and `retry`
-- `ForYouFeed`, `PostCard`, `PostTypeTag`, `PostPhoto`, `PostStats`, `HomeHeader`, `AppTabBar`: the parts of the page
-- `formatPostTime`: turns a date into "Just now", "5m", "2h", "Yesterday", "3d" or a date
-
-**Firestore:** reads `posts` (newest first, 10 at a time) and `postImages` (one per post with a photo).
-
-**Firebase console steps:**
-- Publish the new `firestore.rules` in Firestore Database → Rules.
-- No index is needed: sorting by one field works without one.
-
-**How to test:**
-1. Log out, then open the app. Home shows all posts, newest first, without logging in.
-2. With more than 10 posts, scroll down. More posts load at the end until the oldest one.
-3. Pull down from the top. The feed reloads.
-4. A long post shows "...see more". Tap it and the whole text shows.
-5. A post with a photo shows it across the card. The card shows the author, "feeling <mood>", the time, the post type tag, the reactions total and the comments count.
-6. Logged out, tap Friend List, Create, Mood or Profile. The login page opens.
-7. Log in, tap Create and post something. Back on Home, "Posted! Your post is now in the feed." shows for 3 seconds and the new post is at the top. Closing New post with ✕ shows no message.
-8. Tap "Friends" at the top. It says "Coming soon" (Task 15).
-9. With no posts at all, Home says "No posts yet. Be the first!". With no internet, it shows an error and "Try again".
-
-**Notes / limits:**
-- Your own posts show in the For You feed too (team decision). The "Posted" message is not in the mockups yet.
-- Team decisions for this mockup: the card shows only the @username (no full name), Share is only the look (it does nothing), and React and Comment are hidden until Tasks 8 and 9.
-- The "•••" menu on each card is hidden until Task 10 (delete post).
-- The Friends feed is a placeholder until Task 15.
-- The avatar ring and emoji badge show the mood the author picked for that post.
-- Avatar circle colours (purple, pink or Midnight Ink) are picked from the username, so the same user always has the same colour.
-- Photos are loaded one by one for each card and kept while the app is open.
-- "See more" shows on posts over 180 characters or 4 lines.
-
-### Task 8 — Post reactions
-
-**What it does:** Each post card has a React button. Tapping it opens a row of the 6 moods (😊 😢 😠 ❤️ 😮 😂), from the designer's mockup. Picking one reacts with it, and the button then shows that mood (for example "❤️ Love"). Each user has at most one reaction per post: tapping the same mood again removes it, and picking another one switches to it. The counts and top emojis under the post change straight away. Users can react to their own posts. Logged-out users who tap React are sent to login.
-
-**Files:**
-- `src/features/reactions/reactionService.js`: saves a reaction and its count together, and reads the user's reactions
-- `src/features/reactions/ReactionButton.js`: the React button and the row of 6 moods above it
-- `src/features/reactions/reactionCounts.js`: works out the new counts for the instant update on screen
-- `src/features/posts/card/PostCard.js`: shows the React button, updates the counts straight away and puts them back if saving fails
-- `src/features/posts/usePaginatedPosts.js`: also loads the user's own reaction to each post on the page
-- `src/features/posts/feed/ForYouFeed.js`: passes the logged-in user to the feed
-- `src/constants/moods.js`: each mood now has a label ("Happy", "Love")
-- `firestore.rules`: who can react, and how the counts may change
-
-**Main functions / hooks / components:**
-- `setReaction`: sets, switches or removes the user's reaction in one transaction, with the post's counts
-- `fetchMyReactions`: reads the user's reaction to each post on a page
-- `applyReactionChange`: takes 1 from the old mood and adds 1 to the new one
-- `ReactionButton`: the button and the mood row
-
-**Firestore:** reads and writes `posts/{postId}/reactions/{userId}`, and updates `reactionCounts` on `posts`.
-
-**Firebase console steps:**
-- Publish the new `firestore.rules` in Firestore Database → Rules.
-- No index is needed: each reaction is read directly by its post and user ID.
-
-**How to test:**
-1. Logged out, tap React on a post. The login page opens.
-2. Log in. Tap React: the row of 6 moods opens. Tap ❤️. The button shows "❤️ Love" and the total goes up by 1.
-3. Tap the button and pick 😊. It switches to "😊 Happy" and the total stays the same.
-4. Tap the button and pick 😊 again. The reaction is removed, the button says "React" and the total goes down by 1.
-5. Close and reopen the app. Your reaction is still shown.
-6. React to your own post. It works.
-7. With two accounts, react to the same post. Check in the console that `reactionCounts` matches the documents in that post's `reactions`.
-8. Turn off the internet and react. The button goes back and an error shows.
-
-**Notes / limits:**
-- Reactions are the 6 moods (team decision 2026-11-24). Post types are never reactions.
-- The rules check every count change against the user's own reaction in the same step, so the counts can't be changed any other way.
-- The Comment button stays hidden until Task 9. Share is still only the look.
-- Blocked users can't react or remove their reaction (blocking comes in Task 17).
-- The row of moods closes when you pick one or tap React again.
-
-### Task 9 — Comments
-
-**What it does:** Tapping Comment or "N comments" on a post opens the post page: the post, the comment box ("Say something kind..." with a round send button, from the designer's mockup) and the comments, oldest first. Each comment shows the commenter's avatar with their current mood, their username, the time and the text. Logged-in users can add comments and delete their own (a small "Delete" link, which asks first). Logged-out users can read comments and see "Log in to comment".
-
-**Files:**
-- `app/post/[id].js`: the post page: the header with a back button, the post, the comment box and the comments
-- `src/features/comments/commentService.js`: reads, adds and deletes comments, with the post's comment count
-- `src/features/comments/useComments.js`: loads the comments and the commenters' profiles, and adds or deletes comments
-- `src/features/comments/CommentInput.js`: the comment box and send button
-- `src/features/comments/CommentItem.js`: one comment, with "Delete" on your own comments
-- `src/features/posts/usePost.js`: loads one post and your reaction to it
-- `src/features/posts/card/PostCard.js`: the Comment button; can show the whole text on the post page
-- `src/features/posts/card/PostStats.js`: "N comments" opens the post page
-- `src/features/posts/postService.js`: reads one post
-- `src/features/profile/profileService.js`: reads several profiles at once (for the commenters' moods)
-- `src/utils/confirm.js`: asks "Are you sure?" on phones and in the browser
-- `src/utils/validation.js`: the 500-character comment limit
-- `assets/images/`: the comment and send icons
-- `firestore.rules`: who can read, add and delete comments
-
-**Main functions / hooks / components:**
-- `fetchComments`, `addComment`, `deleteComment`: the comment calls; adding and deleting also change the post's count in the same batch
-- `useComments`, `usePost`: the post page's data
-- `fetchPost`, `fetchProfiles`: read one post, and several profiles
-- `CommentInput`, `CommentItem`: the parts of the page
-- `confirmAction`: the "Delete this comment?" question
-
-**Firestore:** reads `posts`, `posts/{postId}/comments` (oldest first) and `users` (the commenters' moods); writes `posts/{postId}/comments` and the post's `commentCount`.
-
-**Firebase console steps:**
-- Publish the new `firestore.rules` in Firestore Database → Rules.
-- No index is needed: one post's comments are sorted by a single field.
-
-**How to test:**
-1. Logged out, tap Comment on a post. The post page opens with its comments and "Log in to comment".
-2. Log in. Tap "N comments" on a post. The post page opens.
-3. Tap Comment on the post page. The cursor goes into the comment box. The send button is faded until you type.
-4. Write a comment and send it. It shows at the bottom, the box empties and the count goes up by 1.
-5. Your comment has "Delete"; other people's don't. Tap Delete, confirm. It's gone and the count goes down by 1.
-6. A commenter's avatar shows their current mood (change it in the console and reopen the page).
-7. A post with no comments says "No comments yet".
-8. Go back. The feed shows the new comment count.
-
-**Notes / limits:**
-- Team decisions: comments are on a separate post page, and users can only delete their own comments. The post's author can't delete other people's comments; that is for admins in Task 17.
-- Comments can't be edited, and there are no replies (out of scope).
-- Comments are up to 500 characters. All comments of a post load at once (no pages).
-- The rules can check that the comment count changes by exactly 1, but not which comment it belongs to, so the count could drift only through someone writing their own requests outside the app.
-- The "Delete" link and the "Log in to comment" text are not in the mockup.
-
-### Task 10 — Delete own post
-
-**What it does:** Your own posts have a "•••" button in the top corner (other people's posts don't). It opens a small menu with "Delete post", from the designer's mockup. After you confirm, the post is deleted together with its photo, all its comments and all its reactions, so nothing is left behind. In the feed the card disappears; on the post page you go back.
-
-**Files:**
-- `src/features/posts/card/PostMenu.js`: the "•••" button and its menu with "Delete post"
-- `src/features/posts/card/PostCard.js`: shows the menu only on your own posts, asks first and deletes
-- `src/features/posts/postService.js`: `deletePost` deletes the post with everything that belongs to it
-- `src/features/posts/usePaginatedPosts.js`, `ForYouFeed.js`: take a deleted post off the feed
-- `app/post/[id].js`: goes back after the post is deleted
-- `assets/images/`: the "•••" and trash icons
-- `firestore.rules`: who can delete posts, photos, and a deleted post's comments and reactions
-
-**Main functions / hooks / components:**
-- `deletePost`: deletes the post, its photo, comments and reactions in one batch (more batches only for a post with hundreds of them). The admin dashboard will reuse it (Task 17)
-- `PostMenu`: the "•••" menu
-- `removePost` (in `usePaginatedPosts`): takes a post off the feed
-
-**Firestore:** reads `posts/{postId}/comments` and `posts/{postId}/reactions`; deletes them, `posts/{postId}` and `postImages/{postId}`.
-
-**Firebase console steps:**
-- Publish the new `firestore.rules` in Firestore Database → Rules.
-- No index is needed.
-
-**How to test:**
-1. Logged out, no post has "•••".
-2. Log in. Only your own posts have "•••".
-3. Tap "•••": the menu shows "Delete post". Tap it and cancel: nothing changes.
-4. Tap "Delete post" again and confirm. The card disappears.
-5. In the console, the post, its `postImages` document and its comments and reactions (also other people's) are all gone.
-6. Open one of your posts, delete it from the post page. You go back to the feed.
-
-**Notes / limits:**
-- Posts can't be edited (MVP).
-- Only the author can delete a post from the app. Admins will delete any post in Task 17, with the same `deletePost`.
-- The menu's only action is "Delete post" (team decision).
-- Deleting asks first. Changed after Task 14: it now uses the shared "Delete this post?" pop-up (`ConfirmDialog`, the same design as Remove friend: 🗑️, Cancel and a red Delete button), the same on phones and on the web. Deleting a comment still uses the phone's own dialog or the browser's confirm box.
-
-### Task 11 — My profile
-
-**What it does:** The Profile tab is built from the designer's mockup. At the top: a share button (look only), your @username and a ☰ button. Then your avatar (photo or initials, with your mood ring and emoji), your name, a "Feeling happy" mood pill that opens the Mood tab, your bio, and three numbers: posts, friends and reactions (all reactions your posts got). "Edit profile" opens a pop-up to change your photo (cropped square, 300 x 300 px) and bio (up to 150 characters). "Invite friends" opens the Friend List tab. Below is "My posts" with chips to show all posts or only one post type, 10 at a time. ☰ opens "Account settings": for now it shows your username and email, and only Log out works. The Mood tab shows your current mood and lets you pick a new one (see "Task 11 (follow-up) — Mood tab design"). Everything stays after closing the app.
-
-**Files:**
-- `app/(tabs)/profile.js`: the Profile tab: header, my posts, and the two pop-ups
-- `app/(tabs)/_layout.js`: Profile has no default title bar (the design has its own top bar)
-- `app/(tabs)/mood.js`: the Mood tab
-- `src/features/profile/ProfileHeader.js`: everything above the posts
-- `src/features/profile/MoodPill.js`: the "Feeling happy" pill
-- `src/features/profile/ProfileStats.js`: the posts / friends / reactions boxes
-- `src/features/profile/EditProfileModal.js`: the Edit profile pop-up
-- `src/features/profile/AccountSettingsModal.js`: the Account settings pop-up (moved to `src/features/settings/` in Task 16)
-- `src/features/profile/useProfileStats.js`: loads the post and reaction numbers
-- `src/features/profile/useProfilePhoto.js`: loads profile photos once and shows a new photo everywhere
-- `src/features/profile/Avatar.js`: now shows the user's photo when they have one (initials otherwise)
-- `src/features/profile/profileService.js`: saves the photo, bio and mood
-- `src/features/posts/feed/PostTypeFilter.js`: the All / post type chips
-- `src/features/posts/feed/PostList.js`: the list of post cards, shared by the For You feed and my posts
-- `src/features/posts/feed/ForYouFeed.js`: now just the shared list with all posts
-- `src/features/posts/postService.js`, `usePaginatedPosts.js`: load one user's posts, optionally of one type, and count posts and reactions
-- `src/features/posts/card/PostCard.js`, `PostAuthorMood.js`, `NewPostForm.js`, `src/features/comments/CommentItem.js`, `app/post/[id].js`: pass the photo to the avatars
-- `src/components/AppModal.js`: the shared pop-up card with a title and ✕
-- `src/utils/images.js`: makes a picked photo a small square for the profile
-- `src/theme/colors.js`: the dimmed colour behind pop-ups
-- `assets/images/`: the ☰, log out and dark share icons
-- `firestore.rules`: profile photos, the photo flag, and authors updating the copies on their posts
-- `firestore.indexes.json`: the two indexes for "my posts"
-
-**Main functions / hooks / components:**
-- `saveProfilePhoto`: saves the photo and turns `hasPhoto` on in one batch, together with `authorHasPhoto` on all the user's posts
-- `saveBio`, `saveMood`: save the bio, and the current mood with its time
-- `fetchAuthorStats`: reads a user's posts once, counts them and adds up their reactions (no extra index needed)
-- `useProfileStats`: the numbers for the profile, loaded again after a refresh or a deleted post
-- `useProfilePhoto`: returns a user's photo for an avatar; `rememberProfilePhoto` shows a new photo at once
-- `prepareProfilePhoto`: crops the photo square, makes it 300 x 300 px and small enough
-- `PostList`: the post list with pages, pull to refresh, a post type filter, and loading, empty and error states
-- `AppModal`: the pop-up card used by Edit profile and Account settings
-
-**Firestore:** reads and writes `users/{uid}` (bio, mood, moodUpdatedAt, hasPhoto) and `profileImages/{uid}`; reads `posts` where `authorId` is the user (and `postType` when filtered), newest first; reads all of them once to count them and add up their `reactionCounts`; updates `authorHasPhoto` on the user's posts.
-
-**Firebase console steps:**
-- Publish the new `firestore.rules` in Firestore Database → Rules.
-- Create two composite indexes on the `posts` collection (Firestore Database → Indexes → Create index):
-  - `authorId` Ascending, `createdAt` Descending (my posts)
-  - `authorId` Ascending, `postType` Ascending, `createdAt` Descending (my posts of one type)
-
-**How to test:**
-1. Log in and open Profile. It shows your @username, avatar, name, mood pill, bio and the numbers. Only your posts are listed, newest first, and more load when you scroll.
-2. Tap a post type chip: only posts of that type show. A type you never used says "You have no … posts yet." Tap All to see everything.
-3. Tap Edit profile, change the photo and bio, and tap Save. The pop-up closes and the new photo and bio show at once, also on your posts and comments.
-4. Tap the mood pill: the Mood tab opens. Pick another mood, tap "Set as my mood", go back: the pill and avatar ring changed.
-5. Tap Invite friends: the Friend List tab opens.
-6. Delete one of your posts: the posts and reactions numbers go down.
-7. Tap ☰: Account settings shows your username and email; tap Log out and you are back on Home.
-8. Close and reopen the app: photo, bio and mood are still there.
-
-**Notes / limits:**
-- The big name is the display name, which is the username (there is no full-name field). Post cards still show @username only (team decision).
-- "friends" shows 0 until the friends tasks (13 and 14).
-- Share does nothing (look only, team decision).
-- Account settings: the username, email and password fields only show the current values; changing them comes in Task 16. The hint says 6 characters (the team kept 6, the mockup says 8).
-- A profile photo can be changed but not removed (not in the plan).
-- Other people's new photos show after reopening the app; your own shows at once.
-- The current mood is just one mood: no history or chart (out of scope).
-
-### Task 11 (follow-up) — Mood tab design
-
-**What it does:** The Mood tab is built from the designer's mockup. At the top: "My mood" and "Your friends see this on your profile and in their friend list." A card shows "Right now you're feeling", your current mood with its emoji, and when you set it ("Updated 2 hours ago"); with no mood it says "No mood set" and "Pick a mood below". Under "How are you feeling?" the 6 moods are shown as cards, 3 per row, with your current mood highlighted. Tapping a card only picks it; the button at the bottom then says "Set as my mood" and saves it. While the picked mood is already your current mood, the button is grey and says "This is your current mood" ("Pick a mood" when you have none).
-
-**Files:**
-- `app/(tabs)/mood.js`: the Mood tab: header, current mood card, mood grid and the save button
-- `app/(tabs)/_layout.js`: Mood has no default title bar (the design has its own header)
-- `src/features/profile/CurrentMood.js`: the "Right now you're feeling" card
-- `src/features/profile/MoodPicker.js`: the grid of the 6 mood cards
-- `src/features/profile/MoodEmojiCircle.js`: a mood's emoji in a circle of the mood's colour
-- `src/utils/time.js`: `formatTimeAgo` for "Updated 2 hours ago"
-
-**Main functions / hooks / components:**
-- `CurrentMood`: shows the current mood, or "No mood set"
-- `MoodPicker`: the 6 mood cards; the selected one gets the mood's tint and border
-- `formatTimeAgo`: turns a time into "just now", "5 minutes ago", "2 hours ago", "yesterday", "3 days ago" or "on 12 Nov"
-- `saveMood` (from Task 11): saves the mood and the time it was set
-
-**Firestore:** updates `mood` and `moodUpdatedAt` on `users/{uid}` (already allowed by the Task 11 rules).
-
-**Firebase console steps:** none. The rules and indexes don't change.
-
-**How to test:**
-1. Open the Mood tab. The card shows your current mood and when you set it; that mood's card is highlighted and the button is grey ("This is your current mood").
-2. Tap another mood. It is highlighted, and the button turns purple: "Set as my mood". Nothing is saved yet.
-3. Tap the button. The top card shows the new mood, "Updated just now", and the button turns grey again.
-4. Open Profile: the mood pill and the avatar ring show the new mood.
-5. With an account that never set a mood, the card says "No mood set" and the button says "Pick a mood".
-
-**Notes / limits:**
-- A mood can be changed but not cleared (there is no "No mood" option on this page).
-- Only the current mood is kept: no history (out of scope).
-- Accounts that set a mood before this change may have no saved time; then the "Updated" line is hidden.
-
-### Task 12 — Public profiles
-
-**What it does:** Tapping a username or avatar on a post card, on the post page or in the comments opens that person's profile. It uses the same design as the Profile tab, read-only: a back button, their @username, avatar with mood ring, name, mood pill (it can't be tapped), bio, the posts / friends / reactions numbers, and their posts with the post type chips, 10 at a time. There is no Edit profile, Invite friends or ☰. Anyone can open it, also when logged out. Opening your own profile goes to the Profile tab.
-
-**Files:**
-- `app/user/[uid].js`: the public profile page, with loading, error and "This user doesn't exist." states
-- `src/features/profile/ProfileHeader.js`: now also has a read-only look (`isOwnProfile` false): back button, no buttons, "Posts" instead of "My posts"
-- `src/features/profile/MoodPill.js`: can be read-only (no tap)
-- `src/features/profile/useUserProfile.js`: loads one user's profile
-- `src/features/profile/openUserProfile.js`: opens a user's profile page
-- `src/features/profile/profileService.js`: `fetchProfile` reads one profile
-- `src/features/posts/card/PostCard.js`, `src/features/comments/CommentItem.js`: the avatar and the name open the profile
-- `src/features/posts/card/PostCard.js`, `PostList.js`, `app/(tabs)/profile.js`: post cards say "felt sad when posting" (the mood when the post was written), and their avatar shows the author's current mood
-- `src/features/posts/authorMoods.js`, `usePaginatedPosts.js`, `usePost.js`: load the authors' current moods for the feed and the post page
-
-**Main functions / hooks / components:**
-- `fetchProfile`: reads one user's profile, or null if the user doesn't exist
-- `useUserProfile`: the profile for the page, with loading and error
-- `openUserProfile`: opens `/user/{uid}`
-- `ProfileHeader` with `isOwnProfile`: one design for your own and other people's profiles
-
-**Firestore:** reads `users/{uid}`, `profileImages/{uid}` and that user's `posts` (the same queries as "my posts").
-
-**Firebase console steps:** none. The rules already let anyone read profiles and posts, and the two indexes from Task 11 cover these lists.
-
-**How to test:**
-1. Logged out, on Home, tap someone's avatar or @username: their profile opens, with their posts only. There is no Edit profile, Invite friends or ☰, and the mood pill does nothing.
-2. Tap a post type chip: only that type shows. Tap the back button: you are back on Home.
-3. Log in, open a post page, tap a commenter's name or avatar: their profile opens.
-4. Tap your own avatar or name anywhere: the Profile tab opens.
-5. On someone's profile you can react to and open their posts, but there is no "•••" delete menu.
-6. A post written while sad says "felt sad when posting" everywhere, while its avatar ring shows the author's current mood (in the feed, on the post page and on profiles).
-
-**Notes / limits:**
-- "friends" shows 0 until Tasks 13 and 14.
-- The friend list will open profiles too, when it is built (Task 14).
-- Share is look only (team decision).
-- Two moods on a post card (team decision 2026-11-25): the text always says the mood when posting ("felt sad when posting"), and the avatar ring shows the author's current mood everywhere. The feed reads each author's profile once per page for this (a few extra reads). If that fails, the ring shows the mood when posting.
-- The page is loaded once when opened; a change the user makes later shows after opening it again.
-
-### Post mood change (after Task 12)
-
-**What it does:** A post now always saves the mood the author is in when they post, so "felt sad when posting" is always true. The New post page no longer has "Change mood": it shows your current mood read-only ("😢 feeling sad"). With no mood set it shows "No mood set" and a "Set your mood" link that opens the Mood tab. To post with another mood, change your mood on the Mood tab first. (Team decision 2026-11-25: moods are set in one place only, the Mood tab.)
-
-**Files:**
-- `src/features/posts/card/PostAuthorMood.js`: now read-only: avatar, name and current mood, or "No mood set" with "Set your mood"
-- `src/features/posts/newPost/NewPostForm.js`: no own mood choice any more
-- `src/features/posts/postService.js`: `createPost` saves the author's current mood itself
-- `firestore.rules`: a new post's mood must equal the author's current mood
-
-**Firestore:** `createPost` writes `posts/{postId}.authorMood` from `users/{uid}.mood`. Existing posts don't change.
-
-**Firebase console steps:** publish the new `firestore.rules` in Firestore Database → Rules. No index is needed.
-
-**How to test:**
-1. Set your mood to sad on the Mood tab. Open New post: it shows "😢 feeling sad" and no "Change mood".
-2. Post something. The card says "felt sad when posting".
-3. Change your mood to happy and post again. The new card says "felt happy when posting"; the old one still says sad.
-4. With an account that never set a mood, New post shows "No mood set" and "Set your mood", which opens the Mood tab. Its posts have no "felt … when posting" line.
-
-**Notes / limits:**
-- A post can't have a mood other than your current one, and you can't pick "No mood" for one post.
-- If you change your mood on one phone and post from another in the same second, the post can be refused once; posting again works.
-
-### Task 13 — Invite codes + add friend
-
-**What it does:** The Friend List tab now has the Friends header with a pink Invite button. Invite opens "Invite a friend" from the bottom of the screen. It shows your invite code as 6 coloured letters, with Copy (puts it on the clipboard) and Share (look only: it does nothing, team decision). Each code works once: when a friend has used it, a new one is made the next time you open Invite. Under it, "Got a friend's code?" lets you type a friend's code and tap Add friend to become friends at once. The friend list itself comes in Task 14.
-
-**Files:**
-- `app/(tabs)/friends.js`: the Friends page: header, a temporary "Your friends will show here" card, and the Invite pop-up
-- `src/features/friends/FriendsHeader.js`: the "Friends" title and the Invite button
-- `src/features/friends/InviteFriendModal.js`: the "Invite a friend" pop-up
-- `src/features/friends/InviteCodeCard.js`: the dark card with the code, Copy and Share (look only)
-- `src/features/friends/AddFriendForm.js`: the code box and Add friend button, with error and success messages
-- `src/features/friends/useInviteCode.js`: loads (or makes) the user's code when the pop-up opens
-- `src/features/friends/inviteCodeService.js`: makes, finds and saves invite codes
-- `src/features/friends/friendService.js`: uses a friend's code to create the friendship
-- `src/components/AppModal.js`: can now also be a sheet at the bottom of the screen
-- `src/utils/validation.js`: the code length, the code alphabet and the code check
-- `src/utils/errors.js`: the messages for each wrong code
-- `app/(tabs)/_layout.js`: the Friends tab uses its own header
-- `firestore.rules`: rules for invite codes and friendships
-- New icons: `icon-invite-white.svg`, `icon-copy-white.svg`, `icon-share-white.svg`. New package: `expo-clipboard` (for Copy)
-
-**Main functions / hooks / components:**
-- `generateInviteCode`: makes a random 6-character code without look-alike characters
-- `getOrCreateInviteCode`: returns the user's unused code, or makes a new one (trying again if a code is taken)
-- `redeemInviteCode`: in one transaction, checks the code (exists, not used, not your own, not already friends), marks it as used and creates the friendship
-- `getFriendshipId`: the two user IDs sorted and joined with "_"
-- `useInviteCode`: the code for the pop-up, with loading, error and "Try again"
-
-**Firestore:** reads and writes `inviteCodes`, creates `friendships`, reads `users` (the new friend's username for the success message).
-
-**Firebase console steps:** publish the new `firestore.rules` in Firestore Database → Rules. No index is needed: finding your unused code reads only your own codes.
-
-**How to test:**
-1. On phone A, open the Friend List tab and tap Invite. A 6-letter code shows. Close and open it again: the same code.
-2. Tap Copy: the button says "Copied!" for 2 seconds, and pasting gives the code. Share does nothing (look only).
-3. Type your own code and tap Add friend: "That's your own code." Type 3 letters: "Enter the 6-character code." Type a made-up code: "This code doesn't exist."
-4. On phone B (another account), tap Invite, type A's code and tap Add friend: "You're now friends with @…!".
-5. On phone B, try A's code again: "This code was already used."
-6. On phone A, open Invite again: there is a new code. On phone B, use that new code: "You're already friends with this person."
-7. In the Firebase console, `inviteCodes` and `friendships` now have documents.
-
-**Notes / limits:**
-- Share is look only, like Share on posts and profiles (team decision).
-- A friendship stores the code that was used, so the rules can check a real code made it.
-- The Search box, refresh button and friend count came with the friend list in Task 14.
-
-### Task 14 — Friend list with moods + remove friend
-
-**What it does:** The Friend List tab shows all your friends, with their avatar (mood ring and emoji), @username and current mood with how long ago they set it ("feeling sad · 10m"), or "No mood set". The friends with the newest mood change come first. The header shows how many friends you have. The list loads when you open the tab; pull down or tap the round refresh button to load it again (it doesn't update live). The search box filters the friends on screen by username. Tapping a friend, or "View profile" in their ⋮ menu, opens their profile. "Remove friend" opens a "Remove …?" pop-up (from its mockup) with Cancel and a red Remove button, then removes the friendship for both of you. Your own profile now shows your real number of friends.
-
-**Files:**
-- `app/(tabs)/friends.js`: the Friends page: header, list, search, menu, remove, pull to refresh, Invite pop-up
-- `src/features/friends/FriendsHeader.js`: now also the friend count, the refresh button and the search box
-- `src/features/friends/FriendList.js`: the white card with the friend rows, or the empty message
-- `src/features/friends/FriendRow.js`: one friend: avatar, username, mood tag, ⋮ menu
-- `src/features/friends/FriendMenu.js`: the ⋮ button and its menu (View profile, Remove friend)
-- `src/features/friends/useFriends.js`: loads the friends, refreshes them and removes one
-- `src/components/ConfirmDialog.js` (also used by Delete post on post cards): a shared confirm pop-up (emoji, question, explanation, Cancel and a red button); works the same on phones and in the browser, so the admin dashboard can reuse it
-- `src/features/friends/friendService.js`: now also reads, counts and removes friendships
-- `src/features/profile/useProfileStats.js`, `ProfileStats.js`, `ProfileHeader.js`, `app/(tabs)/profile.js`: the friend count on your own profile; other people's profiles don't show a friends box
-- `src/utils/time.js`: the short "10m" / "yesterday" time after a mood
-- `firestore.rules`: friends can list, count and delete their own friendships
-- New icons: `icon-search.svg`, `icon-refresh.svg`, `icon-more-vertical.svg`, `icon-profile-dark.svg`, `icon-remove-friend.svg`
-
-**Main functions / hooks / components:**
-- `fetchFriends`: reads your friendships, then your friends' profiles, newest mood change first
-- `countFriends`: asks Firestore for the number of your friendships (for your profile)
-- `removeFriend`: deletes a friendship
-- `useFriends`: the list with loading, refresh, error and remove
-- `FriendRow` / `FriendMenu`: one friend and their menu; only one menu is open at a time
-
-**Firestore:** reads `friendships` (only your own, with a members query) and `users` (your friends' profiles); deletes `friendships`.
-
-**Firebase console steps:** publish the new `firestore.rules` in Firestore Database → Rules. No index is needed (the friend query uses one field).
-
-**How to test:**
-1. Open Friend List: your friends show with their mood and time ("feeling sad · 10m"), newest first, and "N friends" at the top.
-2. Type part of a username in Search: only matching friends show. Type something else: "No friends match …".
-3. Tap a friend, or ⋮ → View profile: their profile opens (it has no friends box).
-4. On the other phone, change the mood. Pull down the list (or tap refresh): the new mood shows.
-5. ⋮ → Remove friend: the "Remove …?" pop-up shows. Cancel keeps the friend. Remove: they leave your list. On their phone, after a refresh, you are gone from theirs too.
-6. Your Profile shows your real number of friends.
-7. An account with no friends sees "No friends yet. Tap Invite …".
-
-**Notes / limits:**
-- The list doesn't update live (MVP): it reloads when the tab opens, on pull down and with the refresh button.
-- Search only filters your loaded friends; there is no search for other users (out of scope).
-- Other people's profiles don't show a friend count, because friendships are private (team decision).
-- After removing a friend, you can become friends again with a new code.
-
-### Task 15 — Messaging between friends
-
-**What it does:** Task 15 used to be the Friends feed, which the team moved out of scope; it is now a chat between two friends, from the designer's mockups. Each friend on the Friend List has a round purple message button that opens the chat with them. The chat page shows the friend's avatar, username and current mood at the top, the messages (yours in purple on the right, theirs in white on the left, with the time under each and "Today" / "Yesterday" between days), and a "Write a kind message..." box with a send button. New messages show up at once on both phones while the chat is open. Removing a friend also deletes your chat with them.
-
-**Files:**
-- `app/chat/[uid].js`: the chat page, with loading, empty ("Say hi to @…"), error and "you can only chat with friends" states
-- `src/features/chat/chatService.js`: listens to the newest 50 messages and sends a message
-- `src/features/chat/useChat.js`: the live messages for the page, and sending
-- `src/features/chat/ChatHeader.js`: back button, the friend's avatar, username and mood
-- `src/features/chat/MessageItem.js`: one message bubble with its time, and the day label
-- `src/features/friends/FriendMoodTag.js`: the "feeling love · 10m" tag, shared by the friend list and the chat header
-- `src/features/friends/FriendRow.js`, `FriendList.js`, `app/(tabs)/friends.js`: the new message button
-- `src/features/friends/friendService.js`: removing a friend now deletes the chat messages too
-- `src/features/comments/CommentInput.js`: the comment box can now take other texts, so the chat reuses it
-- `src/utils/time.js`: the message time ("9:12") and the day label
-- `src/utils/validation.js`: the 500-character message limit
-- `firestore.rules`: rules for messages
-- New icon: `icon-chat-purple.svg`
-
-**Main functions / hooks / components:**
-- `subscribeToMessages`: listens live to the newest 50 messages of a chat
-- `sendMessage`: saves a message with the server's time
-- `removeFriend`: deletes the friendship and all its messages (in batches of 500)
-- `useChat`: the messages, loading, errors, "not friends" and send
-- `MessageItem` / `ChatHeader` / `FriendMoodTag`: the parts of the chat page
-
-**Firestore:** reads and writes `friendships/{friendshipId}/messages`, reads `users` (the friend's profile). The friendship ID is the two user IDs sorted and joined with "_", so the app finds the chat from the two IDs.
-
-**Firebase console steps:** publish the new `firestore.rules` in Firestore Database → Rules. No index is needed (messages are only sorted by time).
-
-**How to test:**
-1. On Friend List, each friend has a round purple message button. Tap it: the chat opens with their name and mood at the top, and "Say hi to @…" if you never chatted.
-2. Send a message: it shows on the right in purple with the time, and the box empties.
-3. On the other phone, open the chat with you: the message is there on the left. Reply: the reply appears on the first phone at once, without refreshing.
-4. The send button is light purple and does nothing while the box is empty.
-5. Remove the friend from the ⋮ menu: the chat is deleted. An open chat on the other phone changes to "You can only chat with friends."
-6. Open a chat with someone who isn't your friend (for example from an old link): "You can only chat with friends …", and there is no message box.
-
-**Notes / limits:**
-- Text only, up to 500 characters. No photos, no editing or deleting single messages, no unread dots or notifications (team decision, MVP).
-- Only the newest 50 messages are shown.
-- The newest messages sit at the bottom, next to the box, like other chat apps.
-- Deleting an account (Task 16) must also delete the user's chats.
-
-### Task 16 — Settings
-
-**What it does:** The ☰ button on Profile opens Account settings, built from its mockup. You can change your username, email and new password, and one "Save changes" button saves them all. Changing the email or password needs your current password (a "Current password" field appears for it; not in the mockup, Firebase needs it). A new email only takes effect after you open the link sent to it. "Log out" logs you out. "Delete account" opens a pink box: type your password and tap Delete account, and everything you ever made is deleted, as if the account never existed. Also in this task: deleting a comment uses the same pop-up as deleting a post, and the Remove friend text no longer mentions a Friends feed.
-
-**Files:**
-- `src/features/settings/AccountSettingsModal.js`: the Account settings pop-up (moved here from `profile/`)
-- `src/features/settings/DeleteAccountBox.js`: the "Delete your account?" box
-- `src/features/settings/accountService.js`: change username, email and password; delete the account and everything in it
-- `src/features/reactions/reactionService.js`: reactions now also save `userId`
-- `src/features/posts/postService.js`: `fetchAllPostsByAuthor`
-- `src/features/friends/friendService.js`, `inviteCodeService.js`: list your friendships, delete your codes
-- `app/post/[id].js`: deleting a comment uses the "Delete this comment?" pop-up
-- `app/(tabs)/friends.js`: new Remove friend text
-- `app/(tabs)/profile.js`: opens the moved pop-up
-- `src/utils/validation.js`, `src/utils/errors.js`, `src/theme/colors.js`: the settings checks, "Your password is wrong", the pink box border
-- Removed: `src/utils/confirm.js` (nothing uses it any more)
-- `firestore.rules`, `firestore.indexes.json`
-
-**Main functions / hooks / components:**
-- `changeUsername`: in one transaction claims the new username, gives up the old one and updates the profile; then updates the username copy on all your posts and comments
-- `confirmCurrentPassword`: checks your current password with Firebase (needed before changing email or password, or deleting)
-- `changeEmail`: sends a confirmation link to the new email
-- `changePassword`: sets the new password
-- `deleteAccount`: deletes, in order: your posts (with their photos, comments and reactions), your comments and reactions on other posts (fixing their counts), your friendships (with the chats), your invite codes, then your profile photo, username and profile together, and last your login
-
-**Firestore:** writes `usernames`, `users`, `posts`, `posts/*/comments` (username copies); deletes from every collection when an account is deleted. Two collection group queries: all comments by `authorId`, all reactions by `userId`.
-
-**Firebase console steps:**
-1. Publish the new `firestore.rules`.
-2. Two single-field collection group indexes (Firestore Database → Indexes → Single field): `comments` / `authorId` and `reactions` / `userId`, both Ascending, query scope Collection group.
-3. Optional: Authentication → Templates → "Email address change" and "Email address verification" texts.
-
-**How to test:**
-1. Profile → ☰. Save is grey until you change something.
-2. Type a username someone has: "This username is already taken." Type a free one and save: "Your username was changed.", and your posts and comments show the new name.
-3. Type a new password: "Current password" appears. A wrong current password: "Your password is wrong." The right one: "Your password was changed." Log out and log in with the new password.
-4. Type a new email with your current password: "We sent a link to …". Open the email and click the link; log in with the new email.
-5. Tap "Delete account": the pink box opens; Delete account is grey until you type your password. A wrong password shows an error. The right one deletes everything and takes you to Home, logged out. In the console, nothing of the account is left, and other people's posts have the right comment and reaction counts. Logging in with that account fails.
-6. On a post page, tap Delete on your own comment: the "Delete this comment?" pop-up opens.
-
-**Notes / limits:**
-- Reactions made before Task 16 have no `userId`, so deleting an account can't find those old reactions (test data only; new reactions all have it).
-- If the internet drops in the middle of deleting an account, part of it may be left; deleting again finishes it.
-- The hint says 6 characters (the team kept 6; the mockup says 8).
-- The email shown is the login email; it changes after the link is opened and you log in again.
-- If the new email already belongs to another account, Firebase sends no link but still answers "OK" (email enumeration protection: nobody can find out which emails have accounts). The app can't tell, so the success message says so.
-
-### Mood tab: "Set to no mood" (after Task 16)
-
-**What it does:** The "Right now you're feeling" card on the Mood tab has a "Set to no mood" link (from the updated Mood mockup). Tapping it clears your current mood straight away: your profile, avatar ring and friend list show "No mood set", and new posts have no mood until you pick one again.
-
-**Files:** `src/features/profile/CurrentMood.js` (the link), `app/(tabs)/mood.js` (saves no mood with `saveMood`).
-
-**Firestore:** writes `users/{uid}.mood` = null and `moodUpdatedAt`. No rules change (no mood was always allowed).
-
-**How to test:** set a mood, tap "Set to no mood": the card shows "No mood set", the link disappears, and your Profile says "No mood set".
-
-### Post time wording (after Task 16)
-
-**What it does:** The time on post cards now says what it is: "Posted just now", "Posted 5m ago", "Posted 2h ago", "Posted yesterday", "Posted 3d ago", or "Posted on 12 Nov" for older posts (team decision: "2h" alone was confusing next to the mood line). Comments and the friend list keep their short times.
-
-**Files:** `src/utils/time.js` (`formatPostedTime`), `src/features/posts/card/PostCard.js`.
-
-**How to test:** open Home: each card's time line starts with "Posted".
-
-### Task 17 — Admin dashboard (web) + block users
-
-**What it does:** Admins sign in at `/admin` in a browser and get the dashboard from the designer's mockups: a dark sidebar (Dashboard, Users, the admin's name and email, Log out). The **Dashboard** shows the total users, total posts and blocked users, and the 10 newest posts to moderate, each with Delete. **Users** shows all users in a table (name, @username, mood, number of posts, joined date, Active / Blocked, View), with a search box that filters the list. **View** opens one user: their details with **Block user** / **Unblock user**, and all their posts with their comments; the admin can delete any post or comment. Every delete and block asks first with the in-page pop-up. A blocked user is logged out at once and sees "This account has been blocked by an admin."; they can't log in until unblocked. Their posts stay unless the admin deletes them.
-
-**Files:**
-- `app/admin/index.js`: the sign-in page, or the dashboard for admins
-- `app/admin/users.js`: the Users page with search
-- `app/admin/user/[uid].js`: one user, Block / Unblock, their posts and comments with Delete
-- `src/features/admin/layout/AdminShell.js`: the sidebar and page header shared by all admin pages
-- `src/features/admin/dashboard/AdminDashboard.js`: the dashboard content
-- `src/features/admin/layout/AdminOnly.js`: sends non-admins back to `/admin`
-- `src/features/admin/dashboard/StatCard.js`, `RecentPostRow.js`, `UserTable.js`, `AdminUserCard.js`, `AdminPostCard.js`, `AdminMoodTag.js`, `AdminStatusBadge.js`, `AdminDeleteButton.js`: the parts of the pages
-- `src/features/admin/adminService.js`: counts, recent posts, all users, one user with posts and comments, block / unblock
-- `src/features/admin/useAdminData.js`: loads a page's data, with loading, error and reload
-- `src/features/auth/authService.js`, `AuthContext.js`, `LoginForm.js`, `blockedNotice.js`, `app/login.js`: blocked users can't log in and are logged out with a message
-- `src/features/reactions/reactionCounts.js`: `getTotalReactions`
-- `firestore.rules`, `src/theme/colors.js`, new admin icons
-
-**Main functions / hooks / components:**
-- `fetchAdminStats`: counts users, posts and blocked users (Firestore counts, nothing downloaded)
-- `fetchRecentPosts`, `fetchAllUsers`, `fetchUserWithPosts`: the data of the three pages
-- `setUserBlocked`: sets `banned` to true or false
-- `deletePost` (from Task 10) and `deleteComment` (from Task 9) are reused for deleting
-- `AdminShell`, `AdminOnly`, `useAdminData`: the shared frame, guard and loader
-
-**Firestore:** reads `users` (all), `posts`, `posts/*/comments`; writes `users.banned`; deletes posts (with photos, comments, reactions) and comments.
-
-**Firebase console steps:** publish the new `firestore.rules`. No index is needed. An admin account is made by hand: Firestore Database → Data → users → (their ID) → `role` = `admin`.
-
-**How to test (in a browser, admin account):**
-1. Open `/admin`, sign in. The dashboard shows the three numbers and the newest posts.
-2. Delete a post: the pop-up asks; after Delete it disappears and Total posts goes down.
-3. Users: the table lists everyone; type in the search box to filter.
-4. View a user: their details and posts with comments. Delete a comment: the post's count goes down.
-5. Block the user (logged in on a phone): their app logs out to the login page with "This account has been blocked by an admin." Logging in again shows the same message. The table shows "Blocked" and Blocked users goes up by 1.
-6. Unblock: they can log in again.
-7. Your own admin profile and other admins have no Block button. A normal user who opens `/admin/users` is sent back to `/admin`.
-
-**Notes / limits:**
-- No deleting users (team decision): blocking only. The admin decides whether to delete their posts and comments.
-- Admins don't see private chat messages.
-- The Users table and search load all users at once and count each user's posts (fine for an MVP with a small number of users).
-- The full name in the mockup is the display name (FeelTok has no separate full name).
-
-### Task 18 — Final polish, clean-up and README
-
-**What it does:** Nothing new for users: the app works exactly as before, with tidier files. The admin and posts folders were split into clear sub-folders, unused files and duplicated code were removed, every index in `firestore.indexes.json` now says which screen needs it, and the README was rewritten for anyone who opens the project (what FeelTok is, features, out of scope, how to run it, Firebase setup, file structure and acknowledgments).
-
-**Files:**
-- `src/features/admin/`: files moved into `signIn/`, `layout/`, `dashboard/`, `users/` and `parts/` (only the import paths changed)
-- `src/features/posts/`: files moved into `feed/`, `card/` and `newPost/` (only the import paths changed)
-- `src/utils/text.js` (new): `pluralize`, shared by the post times and the admin dashboard counts (it was written twice)
-- `src/utils/time.js`: now also has `formatJoinedDate` (it used to live inside the Users table component)
-- `firestore.indexes.json`: a description on the file and on each index and exemption
-- `README.md`: rewritten
-- Removed: `feeltok-icon.svg`, `icon-gift.svg`, `icon-phone.svg` (used nowhere), and the empty `__tests__/` and `src/components/.gitkeep` placeholders
-- Some helpers that are only used inside their own file are no longer exported (e.g. `generateInviteCode`, `validateUsername`, `POSTS_PER_PAGE`)
-
-**Firestore:** no change.
-
-**Firebase console steps:** none. The rules and indexes are the same as after Task 17. Check that *Firestore Database → Rules* matches `firestore.rules`, and that *Indexes* has the 2 composite indexes and the 2 exemptions listed in `firestore.indexes.json`.
-
-**How it was checked:**
-- All the rules tests from earlier tasks still pass (the only failures are old "not allowed yet" tests for things later tasks allowed on purpose), plus a new final check of what a logged-out user, a normal user, a blocked user and an admin can and can't do (35 checks, all pass).
-- The browser tests of Tasks 12 to 17 pass on the emulators with no errors in the browser console.
-- The iOS, Android and web builds pass.
-
-**How to test:**
-1. Use the app on a phone: sign up or log in, post (with and without a photo), react, comment, delete a post, change your mood, open profiles, add a friend, chat, open Account settings. Everything works as before.
-2. Open `/admin` in the browser: the dashboard, Users, a user page, delete and block all work as before.
-3. Read the README on GitHub: features, out of scope, how to run, Firebase setup, file structure, acknowledgments.
-
-**Notes / limits:**
-- JSON can't have real comments, so `firestore.indexes.json` uses "description" texts. The file is only a record of the console and is never deployed, so they do no harm.
-- No bugs were found in the screens during the checks; nothing else in the code changed.
+## 1. Overview
+
+FeelTok is a small, text-first social app (an MVP made for a university course) where emotions are central:
+
+- Every user has a **current mood**: one of 6 moods (happy, sad, angry, love, surprised, funny), or no mood. It shows as a coloured ring and emoji on their avatar.
+- Every post has a **post type**: one of the 6 "Hi Six" (Love, Gratitude, Apology, Appreciation, Mindfulness, Thank you). A post also saves the mood its author was in when posting.
+- People **react** to posts with the 6 moods instead of a single "like".
+- Friends are added with **invite codes**, and friends can **chat**.
+- **Admins** manage users and posts in a web dashboard.
+
+The moods and the post types are **two separate lists** and are never mixed. "love" is in both, but means a feeling in one and a kind of post in the other.
+
+**Platforms:** users use the app on their phone through **Expo Go** (it also works in a web browser). Admins use the dashboard in a browser at `/admin`; it doesn't exist in the mobile app.
+
+**Tech stack:** React Native with Expo and Expo Router (JavaScript only), Firebase Authentication (email and password) and Cloud Firestore, on the free Spark plan. Without the paid plan there is no Firebase Storage or Cloud Functions, so photos are saved as compressed base64 text in their own Firestore documents, and all checks happen in the Firestore security rules.
+
+## 2. How to run
+
+1. Install Node.js (LTS) on the computer and **Expo Go** on the phone.
+2. Run `npm install` in the project folder.
+3. Copy `.env.example` to `.env` and fill in the Firebase values (Firebase console → ⚙️ Project settings → General → Your apps → the web app → Config). Never commit `.env`.
+4. Run `npx expo start` and scan the QR code with the phone (same Wi-Fi as the computer).
+5. Press **w** in the Expo terminal to open the app in the browser. The admin dashboard is at `/admin` in that tab.
+6. After changing `.env`, or if the app shows old code, restart with `npx expo start -c`.
+
+The first-time Firebase setup (rules, indexes, making an admin) is in [section 8](#8-firebase-console-setup).
+
+## 3. Folder structure
+
+The code is organised **by feature**. Files in `app/` are the pages and stay thin: they put together the components and hooks of a feature. Each feature folder has three kinds of files:
+
+- **Services** (`...Service.js`): the only files that talk to Firebase.
+- **Hooks** (`use...js`): load data for a screen and keep its state (loading, error, the data).
+- **Components** (`PascalCase.js`): what is shown on screen.
+
+| Folder or file | What it is for |
+|---|---|
+| `app/` | The pages. Each file is one route (Expo Router) |
+| `app/(tabs)/` | The 5 tabs: Home, Friend List, Create, Mood, Profile |
+| `app/post/`, `app/user/`, `app/chat/` | A post with its comments, a public profile, a chat with a friend |
+| `app/admin/` | The admin pages (web only) |
+| `src/features/auth/` | Sign up, login, forgot password, the logged-in user, blocked users |
+| `src/features/posts/` | Posts. At the top: Firestore calls and hooks. `feed/`: the Home feed and post lists. `card/`: the post card and its parts. `newPost/`: the New post form and its parts |
+| `src/features/reactions/` | Reacting to posts with a mood |
+| `src/features/comments/` | Comments on posts |
+| `src/features/profile/` | Profiles, avatars, profile photos, bio and moods |
+| `src/features/friends/` | Invite codes, adding and removing friends, the friend list |
+| `src/features/chat/` | Messages between two friends |
+| `src/features/settings/` | Account settings and deleting the account |
+| `src/features/admin/` | The admin area. At the top: Firestore calls and the data hook. `signIn/`, `layout/` (frame and guard), `dashboard/`, `users/`, `parts/` (small shared pieces) |
+| `src/components/` | UI pieces shared by many pages |
+| `src/constants/` | The 6 moods and the 6 post types (the only place they are listed) |
+| `src/lib/` | Firebase setup |
+| `src/theme/` | Brand colours and fonts |
+| `src/utils/` | Helpers: errors, input checks, photos, times, text, platform |
+| `assets/images/` | Logo, icons, app icons |
+| `firestore.rules` | The database security rules (the source of truth, pasted into the console) |
+| `firestore.indexes.json` | A record of the indexes made in the console, each with a description |
+
+## 4. Data model (Firestore)
+
+**Firebase Authentication** keeps each account's email and password; the email is never saved in Firestore. **Firestore** has 7 collections and 3 sub-collections:
+
+| Collection | Document ID | Fields |
+|---|---|---|
+| `users` | The user's ID | `username`, `displayName` (= the username), `bio` (up to 150 characters), `hasPhoto`, `mood` (one of the 6 moods or null), `moodUpdatedAt`, `role` ("user" or "admin"), `banned` (true when blocked), `createdAt` |
+| `usernames` | The username | `uid`: who owns it. Because the username is the ID, two users can never have the same one |
+| `profileImages` | The user's ID | `data` (the photo: 300 x 300 JPEG as base64 text), `updatedAt`. One per user; a new photo replaces the old one |
+| `posts` | A new random ID | `authorId`, `authorUsername`, `authorHasPhoto`, `authorMood` (the author's mood when posting, or null), `postType`, `text`, `imageId` (the post's own ID if it has a photo, else null), `reactionCounts` (a count for each of the 6 moods), `commentCount`, `createdAt` |
+| `posts/{postId}/reactions` | The ID of the user who reacted | `reaction` (one of the 6 moods), `userId`. One reaction per user per post |
+| `posts/{postId}/comments` | A new random ID | `authorId`, `authorUsername`, `text` (up to 500 characters), `createdAt` |
+| `postImages` | The post's ID | `ownerId`, `data` (the photo: at most 800 px wide, as base64 text), `createdAt` |
+| `inviteCodes` | The code itself (6 characters, no I, O, 0 or 1) | `ownerId`, `usedBy` (null until used), `usedAt`, `createdAt`. Each code works once |
+| `friendships` | The two user IDs, sorted and joined with "_" | `members` (the two IDs), `inviteCode` (the code that made it), `createdAt`. The ID makes a second friendship between the same two people impossible |
+| `friendships/{id}/messages` | A new random ID | `senderId`, `text` (up to 500 characters), `createdAt` |
+
+**How moods are stored:** the current mood is `users.mood` (+ `moodUpdatedAt`). When a user posts, it is copied into `posts.authorMood` and never changes after that. Reactions are moods too: one document per user in `reactions`, and a count per mood in `posts.reactionCounts`. The total is the sum of the 6 counts (not stored).
+
+**Copied fields:** to show feeds quickly, posts keep a copy of the author's username and photo flag (`authorUsername`, `authorHasPhoto`) and comments keep `authorUsername`. When a user changes their username or photo, the app updates these copies on all their posts and comments.
+
+**Photos:** without Firebase Storage, photos are made small on the phone, turned into base64 text and saved in `profileImages` or `postImages`, never inside the post or profile itself (a Firestore document can be at most 1 MB).
+
+**Several documents at once:** writes that touch more than one document use a **batch** (all or nothing) or a **transaction** (all or nothing, reading first): sign up (profile + username), changing the username, a post with its photo, a reaction with its count, a comment with its count, deleting a post with everything in it, using an invite code with the new friendship, removing a friend with the chat, and deleting an account.
+
+**Live updates:** the app listens live only to the logged-in user's own profile (so a block or a mood change shows at once) and to the open chat. Everything else is loaded when a page opens and with pull to refresh.
+
+## 5. Security rules
+
+The rules in `firestore.rules` protect the data: hiding a button in the app is not enough, because anyone could call Firestore directly. Everything not listed is locked.
+
+**Everyone (even logged out)**
+- Can read posts (and list them: the For You feed), comments, reactions, one profile, one profile photo, one post photo, and check whether a username is taken.
+- Can't list all users, usernames or photos, and can't write anything.
+
+**Logged-in users who are not blocked**
+- **Sign up:** create their own profile and username together, only once, with the starting values (so nobody can sign up as an admin).
+- **Profile:** change only their own bio, photo, mood and username (claiming the new username and giving up the old one in the same step). Never their own `role` or `banned`.
+- **Posts:** create a post as themselves, with their real username, photo flag and current mood, a valid post type, text that isn't only spaces (up to 5,000 characters) and all counts at 0. A photo is created only together with its post. Posts can't be edited.
+- **Reactions:** set, switch or remove only their own reaction; the post's counts must change by exactly that in the same step.
+- **Comments:** add as themselves and delete only their own; the post's comment count must change by 1 in the same step.
+- **Delete post:** only their own, with its photo, comments and reactions (also other people's) in the same step.
+- **Friends:** make their own invite codes; use someone else's unused code only in the same step as the new friendship; read, list and delete only their own friendships.
+- **Chat:** only the two friends can read and send, only while they are friends.
+- **Delete account:** delete their own profile, username, photo, codes and everything they made.
+
+**Blocked users** can still read, but can't post, react, comment, delete posts, make codes, add or remove friends, or send messages. The app also logs them out and refuses their login.
+
+**Admins** (`role` = "admin", set by hand in the console)
+- Can list and count all users, and block or unblock a user (only the `banned` field), but never themselves or another admin.
+- Can delete any post (with its photo, comments and reactions) and any comment (with the post's count).
+- Can't edit posts, change anyone's role, or read private chats.
+
+## 6. How each feature works
+
+Each feature: what the user sees, then what happens in the code and in Firestore.
+
+### Sign up, login, forgot password
+- **Sign up** (`app/signup.js`): username, email, password and confirm password. `SignUpForm` checks the input (`validateSignUp`), then `signUp` in `authService` checks the username is free, creates the account in Firebase Authentication, and `createUserProfile` writes `users/{uid}` and `usernames/{username}` in one transaction. If that fails, the half-made account is removed.
+- **Login** (`app/login.js`): `logIn` signs in, then reads the profile. If `banned` is true it logs out again and shows "This account has been blocked by an admin."
+- **Staying logged in:** `AuthContext` listens to Firebase Authentication and to the user's own profile (live), and shares `user`, `profile` and `isAdmin` with every screen through `useAuth()`. Login is remembered on the phone (AsyncStorage) and in the browser.
+- **Blocked while using the app:** when the live profile turns `banned`, `AuthContext` logs the user out and sends them to the login page, which shows the blocked message once (`blockedNotice`).
+- **Forgot password:** sends Firebase's reset email and always shows the same neutral message, so nobody can find out which emails have accounts.
+
+### New post
+- The Create tab opens `app/new-post.js` full screen. The user picks a post type (required), writes up to 500 words and can add 1 photo. Their current mood is shown read-only and saved with the post (it is changed only on the Mood tab).
+- `pickPhoto` / `preparePostPhoto` crop and compress the photo to base64. `createPost` writes the post and its photo (same ID) in one batch, with all counts at 0.
+
+### For You feed (Home)
+- Everyone, even logged out, sees all posts, newest first, 10 at a time; more load at the end of the list, and pulling down reloads.
+- `usePaginatedPosts` calls `fetchPostsPage`, which continues after the last loaded post. `addAuthorMoods` reads each author's profile once per page so the avatar rings show their current mood. Each `PostCard` loads its own photo (`PostPhoto`).
+- Cards show "felt sad when posting", the post type, "Posted 2h ago", the text, the photo, the top reactions with the total, and the comment count. Logged-out users who try to react or comment go to the login page.
+
+### Reactions
+- The React button opens a row of the 6 moods. Tapping one reacts, tapping the same again removes it, tapping another switches.
+- `applyReactionChange` updates the counts on screen at once; `setReaction` then saves the reaction and the post's counts in one transaction, and the screen goes back if saving fails.
+
+### Comments
+- Comment or "N comments" opens the post page (`app/post/[id].js`). Comments are oldest first, each with the commenter's avatar showing their current mood.
+- `addComment` / `deleteComment` write the comment and change `commentCount` in one batch. Users delete only their own comments, after the confirm pop-up.
+
+### Delete own post
+- The "•••" menu on your own posts has "Delete post", which asks first (`ConfirmDialog`). `deletePost` deletes the post, its photo, comments and reactions in batches. The admin dashboard uses the same function.
+
+### Profile and Mood tab
+- **Profile tab:** photo, @username, mood pill, bio, the numbers (posts, friends, reactions) and my posts, filtered by post type with the chips. **Edit profile** changes the photo and bio. ☰ opens Account settings.
+- `saveProfilePhoto` saves the photo with `hasPhoto` and updates the copies on the user's posts; `saveBio` saves the bio. `useProfileStats` adds up the user's posts and reactions.
+- **Mood tab:** shows the current mood and when it was set. Tapping a mood picks it; "Set as my mood" saves it (`saveMood`). "Set to no mood" clears it.
+- **Public profiles** (`app/user/[uid].js`): the same design, read-only, opened by tapping any name or avatar. Your own profile goes to the Profile tab.
+
+### Friends
+- **Invite codes:** "Invite" opens a sheet with your code. `getOrCreateInviteCode` shows your unused code or makes a new one (6 random characters, retrying if taken). Copy uses the clipboard; Share only has the look (team decision).
+- **Add friend:** `redeemInviteCode` runs one transaction: the code must exist, be unused, not be yours, and you must not already be friends; then it marks the code used and creates the friendship.
+- **Friend list:** `fetchFriends` loads your friendships and each friend's profile, newest mood change first. It loads again each time you open the tab and with pull to refresh or the refresh button; it doesn't change on its own while you look at it. The search box filters the loaded list.
+- **Remove friend:** asks first, then `removeFriend` deletes the friendship and the chat's messages.
+
+### Messaging
+- The message button on a friend opens `app/chat/[uid].js`. `useChat` listens live (`subscribeToMessages`) to the newest 50 messages, so new ones appear at once. `sendMessage` saves the text with the server's time. Day labels ("Today") and times come from `utils/time.js`.
+
+### Account settings
+- One Save button for username, email and password. Email and password changes ask for the current password (`confirmCurrentPassword`). `changeUsername` swaps the username in a transaction and updates the copies on all posts and comments; `changeEmail` sends a verification link to the new address; `changePassword` sets the new one.
+- **Delete account:** after the password, `deleteAccount` deletes the user's posts (with photos, comments and reactions), their comments and reactions on other posts (fixing the counts), friendships and chats, invite codes, photo, username and profile, and finally the login account.
+
+### Admin dashboard (web)
+- `/admin` shows the admin sign-in page, then the dashboard for admins (non-admins see a message). `AdminShell` draws the sidebar and header; `AdminOnly` sends non-admins away from the other admin pages.
+- **Dashboard:** `fetchAdminStats` counts users, posts and blocked users (Firestore counts, nothing downloaded); `fetchRecentPosts` loads the 10 newest posts, each with Delete.
+- **Users:** `fetchAllUsers` loads all users with their post counts; the search box filters the list.
+- **User page:** `fetchUserWithPosts` loads one user with their posts and comments. Delete post and Delete comment reuse `deletePost` and `deleteComment`. **Block / Unblock** calls `setUserBlocked`, which only changes `banned`.
+
+## 7. Code walkthrough
+
+One line per file: what it contains and does.
+
+### Pages (`app/`)
+| File | What it does |
+|---|---|
+| `_layout.js` | Root layout: loads the fonts and wraps every page in the login state (`AuthProvider`) |
+| `(tabs)/_layout.js` | The tab bar; Home is open to everyone, the other tabs need a login |
+| `(tabs)/index.js` | Home: the For You feed and the "Posted!" message |
+| `(tabs)/friends.js` | Friend List: friends with moods, search, refresh, remove, and the Invite sheet |
+| `(tabs)/create.js` | Only sends someone who opens /create to the New post page |
+| `(tabs)/mood.js` | Mood tab: current mood, pick a mood, save or clear it |
+| `(tabs)/profile.js` | My profile with my posts, Edit profile and Account settings |
+| `login.js`, `signup.js`, `forgot-password.js` | The auth pages: the designer's layout around each form |
+| `new-post.js` | The New post page (full screen) |
+| `post/[id].js` | One post with its comments, the comment box, and deleting own comments |
+| `user/[uid].js` | Someone's public profile and posts (read-only) |
+| `chat/[uid].js` | The live chat with one friend |
+| `admin/_layout.js` | Web only: the mobile app has no admin pages |
+| `admin/index.js` | The admin sign-in page, or the dashboard for admins |
+| `admin/users.js` | The Users table with search |
+| `admin/user/[uid].js` | One user: Block / Unblock, their posts and comments with Delete |
+
+### Auth (`src/features/auth/`)
+| File | What it does |
+|---|---|
+| `authService.js` | `signUp`, `logIn` (refuses blocked users), `sendPasswordReset`, `logOut` |
+| `AuthContext.js` | Shares the logged-in user, their live profile and `isAdmin`; logs out users who get blocked |
+| `blockedNotice.js` | Remembers that a user was just blocked, so the login page says why once |
+| `AuthLayout.js` | The shared layout of the login, sign up and forgot password pages |
+| `LoginForm.js` | The login form and its errors |
+| `SignUpForm.js` | The sign up form, its checks and the terms text |
+| `ForgotPasswordForm.js` | The email field and Send Link button |
+| `EmailField.js`, `PasswordField.js` | The email and password inputs (with Show) shared by the forms |
+
+### Posts (`src/features/posts/`)
+| File | What it does |
+|---|---|
+| `postService.js` | `createPost`, `fetchPostsPage`, `fetchPost`, `fetchPostPhoto`, `deletePost`, `fetchAllPostsByAuthor`, `fetchAuthorStats` |
+| `usePaginatedPosts.js` | Loads posts 10 at a time, with load more and refresh |
+| `usePost.js` | Loads one post and the user's reaction to it (post page) |
+| `authorMoods.js` | Adds each author's current mood to a list of posts |
+| `postedNotice.js` | Remembers that a post was just made, so Home shows "Posted!" once |
+| `feed/ForYouFeed.js` | The For You feed: the post list with all posts |
+| `feed/PostList.js` | A list of post cards with loading, empty and error states (feed and profiles) |
+| `feed/HomeHeader.js` | The logo and the For You / Friends switch |
+| `feed/PostTypeFilter.js` | The All / post type chips on profiles |
+| `feed/PostedMessage.js` | The "Posted! Your post is now in the feed." message |
+| `card/PostCard.js` | One post: author, mood, type, time, text, photo, counts, React, Comment, Share, ••• |
+| `card/PostMenu.js` | The ••• menu with "Delete post" on your own posts |
+| `card/PostPhoto.js` | Loads and shows a post's photo |
+| `card/PostStats.js` | The top reactions with the total, and the comment count |
+| `card/PostTypeTag.js` | The small post type tag |
+| `newPost/NewPostForm.js` | The New post form, its checks and the Post button |
+| `newPost/PostAuthorMood.js` | The author's avatar, name and current mood (read-only) on New post |
+| `newPost/PostTypePicker.js` | The 6 post types in two columns |
+| `newPost/PostTextField.js` | The big text box |
+| `newPost/PostPhotoField.js` | "Add a photo", or the photo with ✕ |
+| `newPost/PostFormSection.js` | A section heading with its note (e.g. "12 / 500 words") |
+
+### Reactions (`src/features/reactions/`)
+| File | What it does |
+|---|---|
+| `reactionService.js` | `setReaction` (reaction + counts in one transaction), `fetchMyReactions` |
+| `reactionCounts.js` | Works out the new counts on screen (`applyReactionChange`) and the total |
+| `ReactionButton.js` | The React button and the row of 6 moods |
+
+### Comments (`src/features/comments/`)
+| File | What it does |
+|---|---|
+| `commentService.js` | `fetchComments`, `addComment`, `deleteComment` (each with the post's count) |
+| `useComments.js` | Loads a post's comments with each commenter's current mood |
+| `CommentItem.js` | One comment: avatar, name, time, text, and Delete on your own |
+| `CommentInput.js` | The text box with the send button (also used by the chat) |
+
+### Profile and moods (`src/features/profile/`)
+| File | What it does |
+|---|---|
+| `profileService.js` | Profiles and usernames: `subscribeToProfile`, `fetchProfile(s)`, `isUsernameFree`, `createUserProfile`, `saveProfilePhoto`, `fetchProfilePhoto`, `saveBio`, `saveMood` |
+| `useUserProfile.js` | Loads one user's profile (public profile, chat header) |
+| `useProfilePhoto.js` | Loads a profile photo once and shares it with all avatars of that user |
+| `useProfileStats.js` | Counts posts, reactions and (own profile) friends |
+| `openUserProfile.js` | Opens a user's public profile page |
+| `Avatar.js` | The round photo or initials with the mood ring and emoji |
+| `ProfileHeader.js` | The top of a profile: avatar, name, mood, bio, numbers, buttons, chips |
+| `ProfileStats.js` | The 3 number boxes |
+| `MoodPill.js` | "Feeling happy" under the name |
+| `EditProfileModal.js` | The Edit profile pop-up (photo and bio) |
+| `CurrentMood.js` | "Right now you're feeling" on the Mood tab, with "Set to no mood" |
+| `MoodPicker.js` | The grid of the 6 moods |
+| `MoodEmojiCircle.js` | A mood's emoji in a coloured circle |
+
+### Friends (`src/features/friends/`)
+| File | What it does |
+|---|---|
+| `inviteCodeService.js` | `getOrCreateInviteCode`, `deleteMyInviteCodes` |
+| `friendService.js` | `redeemInviteCode`, `fetchFriends`, `countFriends`, `removeFriend`, `getFriendshipId`, `fetchMyFriendshipIds` |
+| `useFriends.js` | Loads the friend list, with refresh and removing a friend |
+| `useInviteCode.js` | Loads my invite code |
+| `FriendsHeader.js` | Title with the count, refresh button, search box and Invite button |
+| `FriendList.js` | The card with the friend rows (one ⋮ menu open at a time) |
+| `FriendRow.js` | One friend: avatar, name, mood tag, message button, ⋮ |
+| `FriendMoodTag.js` | "feeling love · 10m" or "No mood set" |
+| `FriendMenu.js` | The ⋮ menu: View profile, Remove friend |
+| `InviteFriendModal.js` | The "Invite a friend" sheet |
+| `InviteCodeCard.js` | My code in coloured letters, with Copy and Share |
+| `AddFriendForm.js` | "Got a friend's code?" box and Add friend |
+
+### Chat (`src/features/chat/`)
+| File | What it does |
+|---|---|
+| `chatService.js` | `subscribeToMessages` (live, newest 50), `sendMessage` |
+| `useChat.js` | Listens to the chat while the page is open |
+| `ChatHeader.js` | Back, the friend's avatar, name and mood |
+| `MessageItem.js` | One message bubble with its time, and the day label |
+
+### Settings (`src/features/settings/`)
+| File | What it does |
+|---|---|
+| `accountService.js` | `confirmCurrentPassword`, `changeUsername`, `changeEmail`, `changePassword`, `deleteAccount` |
+| `AccountSettingsModal.js` | The Account settings pop-up: fields, Save, Log out, Delete account |
+| `DeleteAccountBox.js` | The pink "Delete your account?" box with the password |
+
+### Admin (`src/features/admin/`)
+| File | What it does |
+|---|---|
+| `adminService.js` | `fetchAdminStats`, `fetchRecentPosts`, `fetchAllUsers`, `fetchUserWithPosts`, `setUserBlocked` |
+| `useAdminData.js` | Loads a page's data, with loading, error and reload |
+| `signIn/AdminAuthLayout.js` | The sign-in page layout: dark brand panel and white card |
+| `signIn/AdminSignInForm.js` | The admin sign-in form |
+| `layout/AdminShell.js` | The sidebar (logo, Dashboard, Users, admin, Log out) and page header |
+| `layout/AdminOnly.js` | Sends non-admins back to `/admin` |
+| `dashboard/AdminDashboard.js` | The 3 numbers and the recent posts |
+| `dashboard/StatCard.js` | One number card |
+| `dashboard/RecentPostRow.js` | One recent post with its counts and Delete |
+| `users/UserTable.js` | The Users table |
+| `users/AdminUserCard.js` | The user's details with Block / Unblock |
+| `users/AdminPostCard.js` | One of the user's posts with its comments and Delete buttons |
+| `parts/AdminMoodTag.js` | A small mood tag |
+| `parts/AdminStatusBadge.js` | The Active / Blocked badge |
+| `parts/AdminDeleteButton.js` | The pink Delete button |
+
+### Shared (`src/components/`, `src/constants/`, `src/lib/`, `src/theme/`, `src/utils/`)
+| File | What it does |
+|---|---|
+| `components/AppTabBar.js` | The bottom tab bar with the pink + button |
+| `components/AppModal.js` | The pop-up card (or bottom sheet) with a title and ✕ |
+| `components/ConfirmDialog.js` | The "Are you sure?" pop-up with Cancel and a red button |
+| `components/PrimaryButton.js` | The purple button |
+| `components/TextField.js` | A text input with its label and error |
+| `components/BackButton.js`, `CloseButton.js` | The round back and ✕ buttons |
+| `components/LoadingSpinner.js`, `EmptyState.js`, `ErrorText.js`, `NoticeText.js` | Loading, empty, error and info messages |
+| `components/PlaceholderPage.js` | A "Coming soon" page |
+| `constants/moods.js` | The 6 moods with emojis and colours |
+| `constants/postTypes.js` | The 6 post types with labels, icons and colours |
+| `lib/firebase.js` | Starts Firebase (Auth + Firestore) with the keys from `.env` |
+| `theme/colors.js` | The brand colours (the only place with colour codes) |
+| `theme/fonts.js` | The font names (Plus Jakarta Sans, Inter) |
+| `utils/errors.js` | `friendlyError`: turns Firebase errors into clear messages |
+| `utils/validation.js` | Limits and input checks (username, password, post, comment, code, message) |
+| `utils/images.js` | Pick a photo, resize, compress, turn into base64 |
+| `utils/time.js` | "2h", "Posted yesterday", message times, day labels, "12 Nov 2026" |
+| `utils/text.js` | `pluralize`: "1 comment" / "3 comments" |
+| `utils/platform.js` | `isWeb`: phone or browser |
+
+## 8. Firebase console setup
+
+1. **Email login:** Authentication → Sign-in method → Email/Password → Enable.
+2. **Database:** Firestore Database → Create database.
+3. **Rules:** Firestore Database → Rules → paste all of `firestore.rules` → Publish. Do it again whenever the file changes.
+4. **Indexes** (Firestore Database → Indexes), as recorded in `firestore.indexes.json`:
+   - Composite, collection `posts`: `authorId` Ascending + `createdAt` Descending (a user's posts on profiles).
+   - Composite, collection `posts`: `authorId` Ascending + `postType` Ascending + `createdAt` Descending (the post type chips on profiles).
+   - Single field exemption, collection group `comments`, field `authorId`, Ascending only (username change and delete account).
+   - Single field exemption, collection group `reactions`, field `userId`, Ascending only (delete account).
+5. **Make an admin:** sign up in the app, then Firestore Database → Data → `users` → that user's ID → set `role` to `admin`. To undo, set it back to `user`.
+
+## 9. Testing
+
+- **Security rules:** tested with the Firebase emulators and `@firebase/rules-unit-testing`, task by task, plus a final check of what logged-out, normal, blocked and admin users can and can't do.
+- **Browser:** each task was tested in the web app against the emulators (automated clicks and typing), and the team tested every task on their phones with Expo Go.
+- **Builds:** `npx expo export` for iOS, Android and web after every task.
+
+**Manual demo checklist**
+1. Sign up, log out, log in, and reset a password.
+2. Make a text post and a photo post; see them on Home.
+3. React (switch and remove) and comment from two accounts; the counts stay right.
+4. Delete your own post and your own comment.
+5. Change your photo, bio and mood; open someone's profile.
+6. Add a friend with a code, see their mood, chat, and remove them.
+7. Change username, email and password; delete a test account.
+8. In the browser at `/admin`: delete a post and a comment, block a user (their phone logs out), unblock them.
+
+## 10. Limits and known issues
+
+- **MVP limits:** posts can't be edited; 1 photo per post; no notifications, search (other than the friend list and admin filters), friends-only feed or group chats. The full list is in the README under "Out of scope".
+- **No email verification at sign up.** If the internet drops during sign up, an account without a profile can be left behind.
+- **Email change:** Firebase's email enumeration protection sends no link (and gives no error) when the new address is already used by another account.
+- **Old reactions:** reactions made before Task 16 have no `userId`, so deleting an account can't find them.
+- **Friend list moods** update when the tab is opened or refreshed, not live.
+- **Admin Users table** loads all users at once and counts each user's posts; fine for a small number of users.
+- **Firebase's password reset page** can't be styled with the FeelTok design.
+
+## 11. Task history
+
+| Task | What was built |
+|---|---|
+| 1 | Expo + Firebase setup, folder structure, shared components |
+| 2 | Sign up with a unique username, forgot password |
+| 3 | Login and the login state shared by all screens |
+| 4 | Log out (moved into Account settings in Task 16) |
+| 5 | Roles, page guards, the admin sign-in page, first security rules |
+| 6 | New post page: post type, text, photo, the author's mood |
+| 7 | For You feed with pages of 10, the tab bar |
+| 8 | Reactions with the 6 moods |
+| 9 | Comments on the post page |
+| 10 | Delete own post (with photo, comments, reactions) |
+| 11 | Profile (photo, bio, mood, my posts) and the Mood tab |
+| 12 | Public profiles; post cards say "felt … when posting" |
+| 13 | Invite codes and adding friends |
+| 14 | Friend list with moods, search, remove friend |
+| 15 | Messaging between friends (replaced the out-of-scope Friends feed) |
+| 16 | Account settings and delete account; "Set to no mood"; "Posted 2h ago" |
+| 17 | Admin dashboard (web) and blocking users |
+| 18 | Final polish: clearer folders, clean-up, README, this documentation |

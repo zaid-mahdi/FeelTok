@@ -55,26 +55,40 @@ FeelTok is **one codebase** that runs in two places:
 
 ## Out of scope
 
-To keep FeelTok an MVP, these are **not** built:
+FeelTok is an MVP: the goal was to build the core idea (sharing how you feel, and reacting with feelings) completely and reliably, rather than many features halfway. The features below were left out on purpose. For each one, the table says why, and what FeelTok offers instead.
 
-- Editing posts (by owners or admins)
-- Email verification at sign up
-- Replies to comments
-- Live updates of friends' moods in the friend list
-- Group chats, photos or voice in messages, unread counts, editing or deleting single messages
-- A friends-only feed and private "friends-only" posts (the "Friends" switch on Home shows "Coming soon")
-- Videos, or more than 1 picture per post
-- Mood history charts
-- Emotions Index
-- Happiness Calendar
-- Notifications, including push notifications
-- Group creation
-- Search across the app (only the friend list and the admin Users table filter their own list)
-- Online status / last seen
-- Reporting posts
-- Deleting users from the admin dashboard (admins block them instead)
-- Google / Apple sign-in
-- Firebase Storage and Cloud Functions (they need the paid Blaze plan)
+**Mood and emotion features**
+
+| Not built | Why, and what FeelTok does instead |
+|---|---|
+| Mood history charts | FeelTok focuses on how you feel **right now**. Each user has one current mood, shown on their avatar everywhere and saved on every post ("felt happy when posting"), so friends can follow each other's moods without charts. Storing and drawing a history would need a new data collection and chart screens without adding to the core idea |
+| Emotions Index | Same reason: the current mood, the mood saved with each post, and reacting with the 6 moods already make emotions central. A score or index on top of that would be extra analysis, not needed to share feelings |
+| Happiness Calendar | Same reason: a calendar needs a full mood history. FeelTok keeps the mood simple: pick it on the Mood tab, and friends see it on their friend list, in the chat and on your profile |
+| Live updates of friends' moods in the friend list | The friend list loads again each time you open the Friend List tab, or with pull to refresh. Keeping a live connection open for every friend would cost more Firestore reads on the free plan for little gain |
+
+**Social features**
+
+| Not built | Why, and what FeelTok does instead |
+|---|---|
+| Group creation and group chats | FeelTok has private chats between two friends. Groups need members, roles, invitations and their own security rules, which is too complex for an MVP. Friend-to-friend chat covers the main need: talking with the people you added |
+| Notifications, including push notifications | Push notifications need a server (Cloud Functions, on the paid plan) or an outside service, plus device setup and permissions. Instead, the chat updates live while it is open, and the feed and friend list refresh when you open them |
+| Generating share links | Every post already has its own address (`/post/{postId}`), so a post can be opened directly by its route, and every profile has one too (`/user/{userId}`). Making short public links that open the app needs a hosted website and deep-link setup. The Share button is shown for the design only |
+| A friends-only feed and private "friends-only" posts | All posts are public in the For You feed, which keeps the feed simple and lets new users see content straight away. The "Friends" switch on Home shows "Coming soon" |
+| Replies to comments | One level of comments is enough for short, kind messages, and keeps the post page and the rules simple |
+| Search across the app | Needs a search service (Firestore can't search inside text). Users find people through invite codes, and the friend list and the admin Users table can filter the list they show |
+| Online status / last seen | Not needed for sharing moods, and it raises privacy questions. It was tried and removed |
+| Reporting posts | Admins can already see the newest posts on the dashboard and delete any post or comment |
+
+**Posts, accounts and admin**
+
+| Not built | Why, and what FeelTok does instead |
+|---|---|
+| Editing posts (by owners or admins) | A post is a moment: what you felt then. Owners can delete a post, and admins can delete any post, but nobody can change what was said |
+| Videos, or more than 1 picture per post | FeelTok is text-first. Without Firebase Storage, photos are saved as small compressed text in the database, which works for one picture but not for videos |
+| Email verification at sign up | Keeps sign up quick for testing and the demo. Changing the email later does use a verification link |
+| Google / Apple sign-in | Email and password is enough for the MVP and needs no extra developer accounts |
+| Deleting users from the admin dashboard | Admins block users instead: a blocked user can't log in or post, and the admin decides whether to delete their posts and comments. Users can still delete their own account themselves |
+| Firebase Storage and Cloud Functions | They need the paid Blaze plan. Photos are stored as base64 text in Firestore instead, and all checks are done by the Firestore security rules |
 
 ## How to run the project
 
@@ -154,6 +168,10 @@ The code is organised **by feature**: each feature has its own folder with its s
 | `firestore.rules` | Database security rules (pasted into the Firebase console) |
 | `firestore.indexes.json` | Record of the indexes made in the Firebase console |
 | `documentation.md` | Full project documentation, task by task |
+
+## License
+
+This project was made for academic purposes, as a university group project for SWE6301 Agile Programming. All rights reserved to the project contributors. No permission is given to copy, change or share this code without their approval.
 
 ## Acknowledgments
 The following open-source projects were used as references and inspiration during development.
