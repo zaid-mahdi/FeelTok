@@ -365,11 +365,11 @@ One line per file: what it contains and does.
 
 ## 9. Testing
 
-- **Security rules:** tested with the Firebase emulators and `@firebase/rules-unit-testing`, task by task, plus a final check of what logged-out, normal, blocked and admin users can and can't do.
-- **Browser:** each task was tested in the web app against the emulators (automated clicks and typing), and the team tested every task on their phones with Expo Go.
-- **Builds:** `npx expo export` for iOS, Android and web after every task.
+**Testing methodology: Zephyr in Jira.** The team's tests are managed in Zephyr, the test management tool inside Jira. Each feature has test cases with their steps (every click and input) and the expected result, linked to the Jira ticket of its task. Each test run is recorded in Zephyr with its result (pass or fail), so the team has a full history of what was tested and when.
 
-**Manual demo checklist**
+The team ran the test cases for each task on their phones (Expo Go) and in the browser before the task was approved.
+
+**Main test scenarios**
 1. Sign up, log out, log in, and reset a password.
 2. Make a text post and a photo post; see them on Home.
 3. React (switch and remove) and comment from two accounts; the counts stay right.

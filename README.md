@@ -2,7 +2,9 @@
 
 FeelTok is a small, text-first social media app where **emotions are central**. Every user shows how they feel right now with one of 6 moods (happy 😊, sad 😢, angry 😠, love ❤️, surprised 😮, funny 😂). Every post has one of the 6 "Hi Six" post types (Love, Gratitude, Apology, Appreciation, Mindfulness, Thank you), and people react to posts with the moods instead of a single "like". Friends are added with invite codes and can chat with each other.
 
-FeelTok is an **MVP** (minimum viable product) built by **Agile Group 1** for SWE6301 Agile Programming. It covers the core features well and leaves out everything that isn't needed for the course (see [Out of scope](#out-of-scope)). See `documentation.md` for the full documentation of how it works.
+FeelTok is an **MVP** (minimum viable product) built by **Agile Group 1** for SWE6301 Agile Programming. It covers the core features well and leaves out everything that isn't needed for the course (see [Out of scope](#out-of-scope)).
+
+For the data model, the architecture, the security rules and how each feature's logic works, see [documentation.md](documentation.md).
 
 **Module Tutor:** Ms Renuka Nyayadhish  
 **Supervisor:** Dr. Loraine
@@ -155,7 +157,7 @@ The code is organised **by feature**: each feature has its own folder with its s
 | `assets/images/` | Logo, icons and app icons |
 | `firestore.rules` | Database security rules (pasted into the Firebase console) |
 | `firestore.indexes.json` | Record of the indexes made in the Firebase console |
-| `documentation.md` | Full project documentation, task by task |
+| `documentation.md` | Full project documentation: data model, architecture, security rules, feature logic and a walkthrough of every file |
 
 ## License
 
