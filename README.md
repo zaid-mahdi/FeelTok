@@ -2,7 +2,7 @@
 
 FeelTok is a small, text-first social media app where **emotions are central**. Every user shows how they feel right now with one of 6 moods (happy 😊, sad 😢, angry 😠, love ❤️, surprised 😮, funny 😂). Every post has one of the 6 "Hi Six" post types (Love, Gratitude, Apology, Appreciation, Mindfulness, Thank you), and people react to posts with the moods instead of a single "like". Friends are added with invite codes and can chat with each other.
 
-FeelTok is an **MVP** (minimum viable product) built by a university team for SWE6301 Agile Programming. It covers the core features well and leaves out everything that isn't needed for the course (see [Out of scope](#out-of-scope)). See `documentation.md` for the full documentation of every task.
+FeelTok is an **MVP** (minimum viable product) built by **Agile Group 1** for SWE6301 Agile Programming. It covers the core features well and leaves out everything that isn't needed for the course (see [Out of scope](#out-of-scope)). See `documentation.md` for the full documentation of how it works.
 
 ## The platform
 
@@ -156,7 +156,7 @@ The code is organised **by feature**: each feature has its own folder with its s
 
 ## License
 
-This project was made for academic purposes, as a university group project for SWE6301 Agile Programming. All rights reserved to the project contributors. No permission is given to copy, change or share this code without their approval.
+This project was made for academic purposes, by Agile Group 1 for SWE6301 Agile Programming. All rights reserved to the project contributors. No permission is given to copy, change or share this code without their approval.
 
 ## Acknowledgments
 The following open-source projects were used as references and inspiration during development.
@@ -168,3 +168,8 @@ The following open-source projects were used as references and inspiration durin
 - [chat-application-react-native](https://github.com/priyansh7999/chat-application-react-native) by priyansh7999 (MIT) — friend code and friend invitation system
 - [InstagramClone](https://github.com/tuuguu21/InstagramClone) by tuuguu21 (Apache 2.0) — comments and likes on posts with Firestore
 - [JustTalk](https://github.com/adiksuu/justtalk) by adiksuu (MIT) — real-time messaging and Firebase service structure
+
+---
+
+**Module Tutor:** Ms Renuka Nyayadhish  
+**Supervisor:** Dr. Loraine
